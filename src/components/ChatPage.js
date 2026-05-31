@@ -29,6 +29,20 @@ const rtcConfig = {
   ]
 };
 
+const toSessionDescriptionPayload = (description) => {
+  if (!description) return null;
+
+  const plainDescription = typeof description.toJSON === 'function' ? description.toJSON() : description;
+  if (typeof plainDescription.type !== 'string' || typeof plainDescription.sdp !== 'string') {
+    return null;
+  }
+
+  return {
+    type: plainDescription.type,
+    sdp: plainDescription.sdp
+  };
+};
+
 const formatTime = (value) => {
   if (!value) return '';
   return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -488,12 +502,17 @@ export default function ChatPage({ user, onLogoutComplete }) {
       if (!peerConnectionRef.current || callStateRef.current?.callId !== callId || !answer) return;
 
       try {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        const normalizedAnswer = toSessionDescriptionPayload(answer);
+        if (!normalizedAnswer) {
+          throw new Error('Invalid call answer payload');
+        }
+
+        await peerConnectionRef.current.setRemoteDescription(normalizedAnswer);
         await flushPendingCandidates();
         setCallState((prev) => (prev && prev.callId === callId ? { ...prev, phase: 'connecting' } : prev));
       } catch (error) {
         console.error('Unable to apply remote answer:', error);
-        setCallError('Unable to connect the call.');
+        setCallError('Unable to connect the call. Please refresh both users and try again.');
         clearMediaSession();
         setCallState(null);
       }
@@ -783,6 +802,10 @@ export default function ChatPage({ user, onLogoutComplete }) {
       const peerConnection = createPeerConnection(activeChat._id, callId);
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
+      const serializedOffer = toSessionDescriptionPayload(peerConnection.localDescription);
+      if (!serializedOffer) {
+        throw new Error('Unable to create a valid call offer.');
+      }
 
       const nextCall = {
         callId,
@@ -795,7 +818,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
       setCallState(nextCall);
       socket.emit('call-request', {
         ...nextCall,
-        offer: peerConnection.localDescription
+        offer: serializedOffer
       });
     } catch (error) {
       console.error('Unable to start call:', error);
@@ -812,15 +835,24 @@ export default function ChatPage({ user, onLogoutComplete }) {
       setCallError('');
       await ensureLocalStream(incomingCall.type);
       const peerConnection = createPeerConnection(incomingCall.caller._id, incomingCall.callId);
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
+      const normalizedOffer = toSessionDescriptionPayload(incomingCall.offer);
+      if (!normalizedOffer) {
+        throw new Error('Incoming call offer is invalid.');
+      }
+
+      await peerConnection.setRemoteDescription(normalizedOffer);
       await flushPendingCandidates();
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
+      const serializedAnswer = toSessionDescriptionPayload(peerConnection.localDescription);
+      if (!serializedAnswer) {
+        throw new Error('Unable to create a valid call answer.');
+      }
 
       socket.emit('call-answer', {
         recipientId: incomingCall.caller._id,
         callId: incomingCall.callId,
-        answer: peerConnection.localDescription
+        answer: serializedAnswer
       });
 
       setCallState({
