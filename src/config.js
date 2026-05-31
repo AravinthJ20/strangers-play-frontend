@@ -1,4 +1,4 @@
-const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://strangers-play.netlify.app';
+const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://strangers-play-backend.onrender.com';
 
 export const appConfig = {
   apiBaseUrl,
