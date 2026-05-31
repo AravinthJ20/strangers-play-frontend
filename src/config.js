@@ -1,4 +1,4 @@
-const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://strangers-play.netlify.app';
 
 export const appConfig = {
   apiBaseUrl,
