@@ -1,4 +1,4 @@
-const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+const apiBaseUrl =  'http://localhost:4000' || 'https://strangers-play-backend.onrender.com';
 
 export const appConfig = {
   apiBaseUrl,

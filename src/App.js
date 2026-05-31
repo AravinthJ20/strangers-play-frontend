@@ -6,6 +6,16 @@ import ChatPage from './components/ChatPage';
 import LandingPage from './components/LandingPage';
 import { getCurrentUser } from './api';
 
+const getStoredToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token || token === 'undefined' || token === 'null') {
+    localStorage.removeItem('token');
+    return null;
+  }
+
+  return token;
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -19,7 +29,7 @@ function App() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     if (!token) {
       setUser(null);
       setAuthChecked(true);

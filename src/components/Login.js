@@ -11,12 +11,18 @@ export default function Login() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setError('');
     try {
-      const data = await loginUser({ email, password });
+      const data = await loginUser({ email: email.trim().toLowerCase(), password });
+      if (!data?.token) {
+        throw new Error('Login succeeded but no auth token was returned.');
+      }
+
       localStorage.setItem('token', data.token);
-      navigate('/chat');
+      navigate('/chat', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      localStorage.removeItem('token');
+      setError(err.response?.data?.error || err.message || 'Login failed');
     }
   };
 
