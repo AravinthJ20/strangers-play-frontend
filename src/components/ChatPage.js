@@ -18,6 +18,7 @@ import {
   searchUsers,
   sendConnectionRequest,
   sendInviteEmail,
+  subscribeToPush,
   uploadChatMedia
 } from '../api';
 
@@ -43,6 +44,19 @@ const toSessionDescriptionPayload = (description) => {
   };
 };
 
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const normalized = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(normalized);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let index = 0; index < rawData.length; index += 1) {
+    outputArray[index] = rawData.charCodeAt(index);
+  }
+
+  return outputArray;
+};
+
 const formatTime = (value) => {
   if (!value) return '';
   return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -62,7 +76,16 @@ const getInitials = (value) =>
     .join('') || 'SP';
 
 const buildChatPreview = (item) => {
+  if (item.isDeleted || item.lastMessage?.isDeleted) return 'Message deleted';
+  if (item.location || item.lastMessage?.location || item.type === 'location' || item.lastMessage?.type === 'location') return 'Location';
   if (item.sticker || item.lastMessage?.sticker) return 'Sticker';
+  if (item.type === 'call' || item.lastMessage?.type === 'call') {
+    const callDetails = item.callDetails || item.lastMessage?.callDetails;
+    if (callDetails) {
+      return `${callDetails.mode === 'video' ? 'Video' : 'Voice'} call ${callDetails.status}`;
+    }
+    return 'Call activity';
+  }
   const attachments = item.attachments || item.lastMessage?.attachments || [];
   if (attachments.length > 0) {
     return attachments.every((entry) => entry.category === 'image') ? 'Photo' : 'Attachment';
@@ -78,14 +101,50 @@ const readFileAsDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
+const resolveMediaSource = (publicUrl) => {
+  if (!publicUrl) return '';
+  if (/^https?:\/\//i.test(publicUrl)) return publicUrl;
+  return `${appConfig.mediaBaseUrl}${publicUrl}`;
+};
+
+const getReactionCount = (message, value) => (message.reactions || []).filter((reaction) => reaction.value === value).length;
+
+const getUserReaction = (message, userId) => (message.reactions || []).find((reaction) => reaction.user === userId || reaction.user?._id === userId)?.value || '';
+
+const buildLocationMapUrl = (latitude, longitude) => `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+const LocationPreview = ({ location }) => {
+  if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) return null;
+
+  const mapUrl = location.mapUrl || buildLocationMapUrl(location.latitude, location.longitude);
+  const coordinateLabel = `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
+
+  return (
+    <a
+      className="location-card"
+      href={mapUrl}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="location-card-pin">📍</div>
+      <div className="location-card-copy">
+        <strong>{location.label || 'Shared location'}</strong>
+        <span>{coordinateLabel}</span>
+        <small>Open in Maps</small>
+      </div>
+    </a>
+  );
+};
+
 const MediaPreview = ({ attachment }) => {
-  const source = `${appConfig.mediaBaseUrl}${attachment.publicUrl}`;
+  const source = resolveMediaSource(attachment.publicUrl);
   if (attachment.category === 'image') {
-    return <img src={source} alt={attachment.originalName} className="message-image" />;
+    return <img src={source} alt={attachment.originalName} className="message-image" onClick={(event) => event.stopPropagation()} />;
   }
 
   return (
-    <a className="file-chip" href={source} target="_blank" rel="noreferrer">
+    <a className="file-chip" href={source} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
       <span>FILE</span>
       <span>{attachment.originalName}</span>
     </a>
@@ -106,8 +165,9 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [draftSticker, setDraftSticker] = useState('');
   const [draftAttachments, setDraftAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const [showComposerPopup, setShowComposerPopup] = useState(false);
+  const [composerPopupView, setComposerPopupView] = useState('menu');
   const [activeTab, setActiveTab] = useState('chats');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -120,6 +180,9 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [inviteStatus, setInviteStatus] = useState('');
   const [memberIdsToAdd, setMemberIdsToAdd] = useState([]);
   const [chatError, setChatError] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState('');
+  const [editingMessageText, setEditingMessageText] = useState('');
+  const [openMessageMenuId, setOpenMessageMenuId] = useState('');
   const [callState, setCallState] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [callError, setCallError] = useState('');
@@ -142,10 +205,98 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const toneIntervalRef = useRef(null);
+  const toneTimeoutRef = useRef(null);
   const token = localStorage.getItem('token');
 
   const stopStream = (stream) => {
     stream?.getTracks().forEach((track) => track.stop());
+  };
+
+  const getAudioContext = () => {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContextClass();
+    }
+
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
+    }
+
+    return audioContextRef.current;
+  };
+
+  const clearToneTimers = () => {
+    if (toneIntervalRef.current) {
+      window.clearInterval(toneIntervalRef.current);
+      toneIntervalRef.current = null;
+    }
+    if (toneTimeoutRef.current) {
+      window.clearTimeout(toneTimeoutRef.current);
+      toneTimeoutRef.current = null;
+    }
+  };
+
+  const playBeep = (frequency, duration, startDelay = 0, gainValue = 0.04) => {
+    const audioContext = getAudioContext();
+    if (!audioContext) return;
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    const startAt = audioContext.currentTime + startDelay;
+    const endAt = startAt + duration;
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, startAt);
+    gainNode.gain.setValueAtTime(0.0001, startAt);
+    gainNode.gain.exponentialRampToValueAtTime(gainValue, startAt + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, endAt);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.start(startAt);
+    oscillator.stop(endAt + 0.02);
+  };
+
+  const stopCallTone = () => {
+    clearToneTimers();
+  };
+
+  const startIncomingTone = () => {
+    stopCallTone();
+    const ringPattern = () => {
+      playBeep(880, 0.18, 0, 0.05);
+      playBeep(660, 0.18, 0.26, 0.05);
+    };
+
+    ringPattern();
+    toneIntervalRef.current = window.setInterval(ringPattern, 1500);
+  };
+
+  const startOutgoingTone = () => {
+    stopCallTone();
+    const ringbackPattern = () => {
+      playBeep(425, 0.35, 0, 0.035);
+      playBeep(425, 0.35, 0.45, 0.035);
+    };
+
+    ringbackPattern();
+    toneIntervalRef.current = window.setInterval(ringbackPattern, 2200);
+  };
+
+  const playConnectedTone = () => {
+    stopCallTone();
+    playBeep(740, 0.12, 0, 0.05);
+    playBeep(988, 0.14, 0.16, 0.05);
+  };
+
+  const playEndedTone = () => {
+    stopCallTone();
+    playBeep(540, 0.12, 0, 0.04);
+    playBeep(420, 0.16, 0.14, 0.04);
   };
 
   const clearPeerConnection = () => {
@@ -170,6 +321,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
     setIsMicEnabled(true);
     setIsCameraEnabled(true);
+    stopCallTone();
   };
 
   const refreshSidebar = async () => {
@@ -191,14 +343,133 @@ export default function ChatPage({ user, onLogoutComplete }) {
     setSearchResults((prev) => prev.map((entry) => (entry._id === userId ? { ...entry, connectionStatus } : entry)));
   };
 
-  const notifyForMessage = (title, body) => {
+  const showSystemNotification = (title, body, options = {}) => {
     if (document.hasFocus() || !notificationPermissionRef.current) return;
-    new Notification(title, { body });
+
+    const notification = new Notification(title, {
+      body,
+      tag: options.tag,
+      renotify: Boolean(options.tag),
+      silent: true
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+  };
+
+  const notifyForMessage = (title, body) => {
+    showSystemNotification(title, body, { tag: 'message' });
+  };
+
+  const ensurePushNotificationsEnabled = async () => {
+    if (!token || !appConfig.vapidPublicKey || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return;
+    }
+
+    if (Notification.permission !== 'granted') return;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(appConfig.vapidPublicKey)
+        });
+      }
+
+      await subscribeToPush(subscription.toJSON ? subscription.toJSON() : subscription, token);
+    } catch (error) {
+      console.error('Unable to enable push notifications:', error);
+    }
   };
 
   const clearComposerExtras = () => {
     setDraftSticker('');
     setDraftAttachments([]);
+  };
+
+  const replaceMessageInState = (updatedMessage) => {
+    setMessages((prev) => prev.map((entry) => (entry._id === updatedMessage._id ? updatedMessage : entry)));
+    upsertChatItem(updatedMessage, Boolean(updatedMessage.group));
+  };
+
+  const beginEditMessage = (messageToEdit) => {
+    setEditingMessageId(messageToEdit._id);
+    setEditingMessageText(messageToEdit.content || '');
+    setOpenMessageMenuId('');
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId('');
+    setEditingMessageText('');
+  };
+
+  const submitEditMessage = () => {
+    if (!socket || !editingMessageId) return;
+    socket.emit('edit-message', { messageId: editingMessageId, content: editingMessageText });
+    cancelEditMessage();
+  };
+
+  const handleDeleteMessage = (messageId) => {
+    if (!socket) return;
+    socket.emit('delete-message', { messageId });
+    setOpenMessageMenuId('');
+    if (editingMessageId === messageId) {
+      cancelEditMessage();
+    }
+  };
+
+  const handleReactionToggle = (messageId, value) => {
+    if (!socket) return;
+    socket.emit('toggle-message-reaction', { messageId, value });
+    setOpenMessageMenuId('');
+  };
+
+  const handleShareLocation = () => {
+    if (!socket || !activeChat) return;
+    if (!navigator.geolocation) {
+      setChatError('Location sharing is not supported in this browser.');
+      return;
+    }
+
+    setChatError('');
+    setSharingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position.coords.latitude.toFixed(6));
+        const longitude = Number(position.coords.longitude.toFixed(6));
+        const location = {
+          latitude,
+          longitude,
+          label: 'Current location',
+          mapUrl: buildLocationMapUrl(latitude, longitude)
+        };
+        const tempId = `location-${Date.now()}`;
+
+        if (activeChat.group) {
+          socket.emit('group-message', { groupId: activeChat._id, tempId, location, content: '' });
+        } else {
+          socket.emit('personal-message', { recipientId: activeChat._id, tempId, location, content: '' });
+        }
+
+        setSharingLocation(false);
+        setShowComposerPopup(false);
+        setComposerPopupView('menu');
+      },
+      (error) => {
+        const locationError = error.code === 1 ? 'Location permission was denied.' : 'Unable to get your current location.';
+        setChatError(locationError);
+        setSharingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000
+      }
+    );
   };
 
   const upsertChatItem = (messagePayload, isGroup) => {
@@ -250,6 +521,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
     const resolvedChat = chat.group ? groups.find((entry) => entry._id === chat._id) || chat : chat;
     setChatError('');
     clearComposerExtras();
+    cancelEditMessage();
+    setOpenMessageMenuId('');
 
     if (activeChatRef.current?.group && activeChatRef.current._id !== resolvedChat._id) {
       socket?.emit('leave-group', activeChatRef.current._id);
@@ -336,6 +609,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
         }
       });
       syncVideoElements();
+      playConnectedTone();
       setCallState((prev) => (prev && prev.callId === callId ? { ...prev, phase: 'connected' } : prev));
     };
 
@@ -407,15 +681,30 @@ export default function ChatPage({ user, onLogoutComplete }) {
     if ('Notification' in window) {
       Notification.requestPermission().then((permission) => {
         notificationPermissionRef.current = permission === 'granted';
+        if (permission === 'granted') {
+          ensurePushNotificationsEnabled();
+        }
       });
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     const socketClient = io(appConfig.socketUrl, { auth: { token } });
 
     socketClient.on('connect_error', (err) => {
       console.error('Socket connect error:', err.message || err);
+    });
+
+    socketClient.on('message-updated', (updatedMessage) => {
+      replaceMessageInState(updatedMessage);
+    });
+
+    socketClient.on('message-deleted', (updatedMessage) => {
+      replaceMessageInState(updatedMessage);
+    });
+
+    socketClient.on('message-reaction-updated', (updatedMessage) => {
+      replaceMessageInState(updatedMessage);
     });
 
     socketClient.on('user-status', ({ userId, online, lastSeen }) => {
@@ -451,6 +740,16 @@ export default function ChatPage({ user, onLogoutComplete }) {
       }
 
       upsertChatItem(incomingMessage, true);
+    });
+
+    socketClient.on('call-history', (historyMessage) => {
+      const activeDirectChatId = activeChatRef.current && !activeChatRef.current.group ? activeChatRef.current._id : null;
+      const participants = [historyMessage.sender?._id, historyMessage.recipient].filter(Boolean);
+      if (activeDirectChatId && participants.includes(activeDirectChatId)) {
+        setMessages((prev) => [...prev, historyMessage]);
+      }
+
+      upsertChatItem(historyMessage, false);
     });
 
     socketClient.on('message-sent', ({ tempId, messageId, message: confirmedMessage }) => {
@@ -495,6 +794,12 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
     socketClient.on('call-request', (payload) => {
       setCallError('');
+      startIncomingTone();
+      showSystemNotification(
+        `${payload.caller.username} is calling`,
+        `${payload.type === 'video' ? 'Video' : 'Voice'} call incoming`,
+        { tag: `call-${payload.callId}` }
+      );
       setIncomingCall(payload);
     });
 
@@ -507,6 +812,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
           throw new Error('Invalid call answer payload');
         }
 
+        stopCallTone();
         await peerConnectionRef.current.setRemoteDescription(normalizedAnswer);
         await flushPendingCandidates();
         setCallState((prev) => (prev && prev.callId === callId ? { ...prev, phase: 'connecting' } : prev));
@@ -525,12 +831,14 @@ export default function ChatPage({ user, onLogoutComplete }) {
     });
 
     socketClient.on('call-rejected', ({ callId }) => {
+      playEndedTone();
       clearMediaSession();
       setCallState((prev) => (prev && prev.callId === callId ? null : prev));
       alert('Call was rejected.');
     });
 
     socketClient.on('call-ended', ({ callId }) => {
+      playEndedTone();
       clearMediaSession();
       setCallState((prev) => (prev && prev.callId === callId ? null : prev));
       setIncomingCall((prev) => (prev && prev.callId === callId ? null : prev));
@@ -662,8 +970,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
     setMessage('');
     clearComposerExtras();
-    setShowEmojiPicker(false);
-    setShowStickerPicker(false);
+    setShowComposerPopup(false);
+    setComposerPopupView('menu');
   };
 
   const handleConnectionRequest = async (targetUser) => {
@@ -816,6 +1124,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
       };
 
       setCallState(nextCall);
+      startOutgoingTone();
       socket.emit('call-request', {
         ...nextCall,
         offer: serializedOffer
@@ -855,6 +1164,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
         answer: serializedAnswer
       });
 
+      stopCallTone();
       setCallState({
         callId: incomingCall.callId,
         recipientId: incomingCall.caller._id,
@@ -879,6 +1189,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
       callId: incomingCall.callId
     });
 
+    stopCallTone();
     setIncomingCall(null);
   };
 
@@ -890,6 +1201,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
       callId: callState.callId
     });
 
+    playEndedTone();
     clearMediaSession();
     setCallState(null);
   };
@@ -1145,8 +1457,12 @@ export default function ChatPage({ user, onLogoutComplete }) {
               <div className="chat-actions">
                 {!activeChat.group && (
                   <>
-                    <button className="ghost-button" onClick={() => startCall('voice')}>Voice</button>
-                    <button className="ghost-button" onClick={() => startCall('video')}>Video</button>
+                    <button className="ghost-button icon-button" onClick={() => startCall('voice')} title="Voice call" aria-label="Voice call">
+                      📞
+                    </button>
+                    <button className="ghost-button icon-button" onClick={() => startCall('video')} title="Video call" aria-label="Video call">
+                      🎥
+                    </button>
                   </>
                 )}
                 {callState && <button className="danger-button" onClick={endCall}>End Call</button>}
@@ -1195,20 +1511,102 @@ export default function ChatPage({ user, onLogoutComplete }) {
               {chatError && <div className="chat-error-banner">{chatError}</div>}
               {messages.map((msg) => {
                 const isOwnMessage = msg.sender._id === user._id;
+                const callLabel = msg.callDetails
+                  ? `${msg.callDetails.mode === 'video' ? 'Video' : 'Voice'} call ${msg.callDetails.status}`
+                  : 'Call activity';
+                const canEditMessage = isOwnMessage && !msg.isDeleted && msg.type !== 'call' && msg.type !== 'location' && !msg.location;
+                const likeCount = getReactionCount(msg, 'like');
+                const dislikeCount = getReactionCount(msg, 'dislike');
+                const currentReaction = getUserReaction(msg, user._id);
+                const canOpenMessageMenu = msg.type !== 'call' && !msg.isDeleted;
                 return (
-                  <div key={msg._id || msg.timestamp} className={isOwnMessage ? 'message sent' : 'message received'}>
+                  <div
+                    key={msg._id || msg.timestamp}
+                    className={`${isOwnMessage ? 'message sent' : 'message received'} ${canOpenMessageMenu ? 'message-menu-enabled' : ''}`}
+                    onClick={() => {
+                      if (!canOpenMessageMenu || editingMessageId === msg._id) return;
+                      setOpenMessageMenuId((prev) => (prev === msg._id ? '' : msg._id));
+                    }}
+                  >
                     {activeChat.group && !isOwnMessage && <div className="message-author">{msg.sender.username}</div>}
-                    {msg.sticker && <div className="sticker-bubble">{msg.sticker}</div>}
-                    {msg.content && <div>{msg.content}</div>}
-                    {msg.attachments?.length > 0 && (
-                      <div className="media-grid">
-                        {msg.attachments.map((attachment) => (
-                          <MediaPreview key={attachment._id} attachment={attachment} />
-                        ))}
+                    {msg.type === 'call' ? (
+                      <div className="call-history-card">
+                        <strong>{callLabel}</strong>
+                        {msg.callDetails?.durationSeconds > 0 && <span>Duration {msg.callDetails.durationSeconds}s</span>}
+                      </div>
+                    ) : msg.isDeleted ? (
+                      <div className="message-deleted-label">This message was deleted.</div>
+                    ) : editingMessageId === msg._id ? (
+                      <div className="message-edit-panel">
+                        <input
+                          value={editingMessageText}
+                          onChange={(event) => setEditingMessageText(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') submitEditMessage();
+                            if (event.key === 'Escape') cancelEditMessage();
+                          }}
+                          placeholder="Edit message"
+                        />
+                        <div className="message-inline-actions">
+                          <button className="ghost-button message-action-button" onClick={submitEditMessage}>
+                            Save
+                          </button>
+                          <button className="ghost-button message-action-button" onClick={cancelEditMessage}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {msg.location && <LocationPreview location={msg.location} />}
+                        {msg.sticker && <div className="sticker-bubble">{msg.sticker}</div>}
+                        {msg.content && <div>{msg.content}</div>}
+                        {msg.attachments?.length > 0 && (
+                          <div className="media-grid">
+                            {msg.attachments.map((attachment) => (
+                              <MediaPreview key={attachment._id} attachment={attachment} />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {(likeCount > 0 || dislikeCount > 0) && !msg.isDeleted && msg.type !== 'call' && (
+                      <div className="message-reaction-summary">
+                        {likeCount > 0 && <span className={currentReaction === 'like' ? 'active' : ''}>👍 {likeCount}</span>}
+                        {dislikeCount > 0 && <span className={currentReaction === 'dislike' ? 'active' : ''}>👎 {dislikeCount}</span>}
+                      </div>
+                    )}
+                    {openMessageMenuId === msg._id && canOpenMessageMenu && (
+                      <div className="message-inline-menu" onClick={(event) => event.stopPropagation()}>
+                        {canEditMessage && (
+                          <>
+                            <button className="message-menu-item" onClick={() => beginEditMessage(msg)}>
+                              <span className="message-menu-item-icon">✏️</span>
+                              <span>Edit</span>
+                            </button>
+                            <button className="message-menu-item delete" onClick={() => handleDeleteMessage(msg._id)}>
+                              <span className="message-menu-item-icon">🗑️</span>
+                              <span>Delete</span>
+                            </button>
+                          </>
+                        )}
+                        {!msg.isDeleted && (
+                          <>
+                            <button className="message-menu-item" onClick={() => handleReactionToggle(msg._id, 'like')}>
+                              <span className="message-menu-item-icon">👍</span>
+                              <span>{currentReaction === 'like' ? 'Remove Like' : 'Like'}</span>
+                            </button>
+                            <button className="message-menu-item" onClick={() => handleReactionToggle(msg._id, 'dislike')}>
+                              <span className="message-menu-item-icon">👎</span>
+                              <span>{currentReaction === 'dislike' ? 'Remove Dislike' : 'Dislike'}</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                     <div className="message-meta">
                       <small>{formatTime(msg.timestamp)}</small>
+                      {msg.editedAt && <small>Edited</small>}
                       {isOwnMessage && <span className={`message-status ${msg.status || 'sent'}`}>{msg.status || 'sent'}</span>}
                     </div>
                   </div>
@@ -1239,34 +1637,122 @@ export default function ChatPage({ user, onLogoutComplete }) {
             )}
 
             <div className="composer-toolbar">
-              <button className="ghost-button" onClick={() => setShowEmojiPicker((prev) => !prev)}>Emoji</button>
-              <button className="ghost-button" onClick={() => setShowStickerPicker((prev) => !prev)}>Sticker</button>
-              <button className="ghost-button" onClick={() => photoInputRef.current?.click()}>Photo</button>
-              <button className="ghost-button" onClick={() => fileInputRef.current?.click()}>Attach</button>
-              {uploading && <span className="upload-status">Uploading...</span>}
+              <div className="picker-anchor">
+                <button
+                  className="ghost-button composer-launcher"
+                  onClick={() => {
+                    setComposerPopupView('menu');
+                    setShowComposerPopup((prev) => !prev);
+                  }}
+                  title="Open attachments, emoji, and stickers"
+                  aria-label="Open attachments, emoji, and stickers"
+                >
+                  <span>+</span>
+                  <small>Attach</small>
+                </button>
+                {showComposerPopup && (
+                  <div className="picker-popup">
+                    <div className="picker-popup-header">
+                      <strong>{composerPopupView === 'menu' ? 'Chat Tools' : 'Emoji & Stickers'}</strong>
+                      <button
+                        className="picker-popup-close"
+                        onClick={() => {
+                          setShowComposerPopup(false);
+                          setComposerPopupView('menu');
+                        }}
+                      >
+                        x
+                      </button>
+                    </div>
+                    {composerPopupView === 'menu' ? (
+                      <div className="picker-action-grid">
+                        <button
+                          className="picker-action-tile"
+                          onClick={() => {
+                            setComposerPopupView('emoji');
+                          }}
+                        >
+                          <span>😀</span>
+                          <small>Emoji</small>
+                        </button>
+                        <button
+                          className="picker-action-tile"
+                          onClick={() => {
+                            setShowComposerPopup(false);
+                            setComposerPopupView('menu');
+                            fileInputRef.current?.click();
+                          }}
+                        >
+                          <span>📎</span>
+                          <small>Attachment</small>
+                        </button>
+                        <button
+                          className="picker-action-tile"
+                          onClick={() => {
+                            setShowComposerPopup(false);
+                            setComposerPopupView('menu');
+                            photoInputRef.current?.click();
+                          }}
+                        >
+                          <span>🖼️</span>
+                          <small>Photo</small>
+                        </button>
+                        <button
+                          className="picker-action-tile"
+                          onClick={handleShareLocation}
+                          disabled={sharingLocation}
+                        >
+                          <span>📍</span>
+                          <small>{sharingLocation ? 'Sharing...' : 'Location'}</small>
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="picker-popup-section">
+                          <strong>Emojis</strong>
+                        </div>
+                        <div className="picker-panel">
+                          {emojiSet.map((emoji) => (
+                            <button
+                              key={emoji}
+                              className="picker-chip"
+                              onClick={() => {
+                                setMessage((prev) => `${prev}${emoji}`);
+                                setShowComposerPopup(false);
+                                setComposerPopupView('menu');
+                              }}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="picker-popup-section">
+                          <strong>Stickers</strong>
+                        </div>
+                        <div className="picker-panel">
+                          {stickerSet.map((sticker) => (
+                            <button
+                              key={sticker}
+                              className="sticker-choice"
+                              onClick={() => {
+                                setDraftSticker(sticker);
+                                setShowComposerPopup(false);
+                                setComposerPopupView('menu');
+                              }}
+                            >
+                              {sticker}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              {(uploading || sharingLocation) && <span className="upload-status">{uploading ? 'Uploading...' : 'Sharing location...'}</span>}
               <input ref={photoInputRef} type="file" accept="image/*" multiple hidden onChange={(e) => handleAttachmentSelection(e.target.files)} />
               <input ref={fileInputRef} type="file" multiple hidden onChange={(e) => handleAttachmentSelection(e.target.files)} />
             </div>
-
-            {showEmojiPicker && (
-              <div className="picker-panel">
-                {emojiSet.map((emoji) => (
-                  <button key={emoji} className="picker-chip" onClick={() => setMessage((prev) => `${prev}${emoji}`)}>
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {showStickerPicker && (
-              <div className="picker-panel">
-                {stickerSet.map((sticker) => (
-                  <button key={sticker} className="sticker-choice" onClick={() => setDraftSticker(sticker)}>
-                    {sticker}
-                  </button>
-                ))}
-              </div>
-            )}
 
             <div className="composer">
               <input
@@ -1386,6 +1872,19 @@ export default function ChatPage({ user, onLogoutComplete }) {
           </div>
         </div>
       )}
+
+      <div className="quick-fab-stack">
+        <button className="people-fab" onClick={() => navigate('/people')}>
+          <span>⇄</span>
+          <strong>People</strong>
+        </button>
+        {appConfig.features?.status && (
+          <button className="status-fab" onClick={() => navigate('/status')}>
+            <span>◉</span>
+            <strong>Status</strong>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

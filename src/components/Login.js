@@ -6,12 +6,12 @@ import AuthShell from './AuthShell';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [popupState, setPopupState] = useState(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
+    setPopupState(null);
     try {
       const data = await loginUser({ email: email.trim().toLowerCase(), password });
       if (!data?.token) {
@@ -19,10 +19,21 @@ export default function Login() {
       }
 
       localStorage.setItem('token', data.token);
-      navigate('/chat', { replace: true });
+      setPopupState({
+        type: 'success',
+        title: 'Login Successful',
+        message: 'Welcome back. Redirecting you to your chats...'
+      });
+      window.setTimeout(() => {
+        navigate('/chat', { replace: true });
+      }, 900);
     } catch (err) {
       localStorage.removeItem('token');
-      setError(err.response?.data?.error || err.message || 'Login failed');
+      setPopupState({
+        type: 'error',
+        title: 'Login Failed',
+        message: err.response?.data?.error || err.message || 'Invalid credentials'
+      });
     }
   };
 
@@ -33,17 +44,32 @@ export default function Login() {
       footer={
         <div className="auth-footer">
           <span>Don't have an account?</span>
-          <Link to="/register">Register</Link>
+          <span>
+            <Link to="/register">Register</Link> | <Link to="/forgot-password">Forgot Password?</Link>
+          </span>
         </div>
       }
     >
       <form className="auth-form" onSubmit={handleSubmit}>
         <h2>Login</h2>
-        {error && <div className="auth-error">{error}</div>}
         <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <input placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
         <button type="submit">Login</button>
       </form>
+
+      {popupState && (
+        <div className="modal-scrim" onClick={() => setPopupState(null)}>
+          <div className={`modal-card auth-feedback-card ${popupState.type}`} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>{popupState.title}</h3>
+                <p>{popupState.message}</p>
+              </div>
+              <button className="modal-close" onClick={() => setPopupState(null)}>x</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AuthShell>
   );
 }

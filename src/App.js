@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
+import ForgotPassword from './components/ForgotPassword';
 import ChatPage from './components/ChatPage';
+import PeoplePage from './components/PeoplePage';
+import StatusPage from './components/StatusPage';
 import LandingPage from './components/LandingPage';
 import { getCurrentUser } from './api';
 
@@ -33,12 +36,13 @@ function App() {
     if (!token) {
       setUser(null);
       setAuthChecked(true);
-      if (!['/', '/register', '/login'].includes(location.pathname)) {
+      if (!['/', '/register', '/login', '/forgot-password'].includes(location.pathname)) {
         navigate('/');
       }
       return;
     }
 
+    setAuthChecked(false);
     getCurrentUser(token)
       .then((userData) => setUser(userData))
       .catch(() => {
@@ -56,9 +60,12 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={user ? <Navigate to="/chat" /> : <LandingPage />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/login" element={user ? <Navigate to="/chat" replace /> : <Login />} />
+      <Route path="/register" element={user ? <Navigate to="/chat" replace /> : <Register />} />
+      <Route path="/forgot-password" element={user ? <Navigate to="/chat" replace /> : <ForgotPassword />} />
       <Route path="/chat" element={user ? <ChatPage user={user} onLogoutComplete={handleLoggedOut} /> : <Navigate to="/login" />} />
+      <Route path="/people" element={user ? <PeoplePage user={user} /> : <Navigate to="/login" />} />
+      <Route path="/status" element={user ? <StatusPage user={user} /> : <Navigate to="/login" />} />
       <Route path="*" element={<Navigate to={user ? '/chat' : '/'} />} />
     </Routes>
   );
