@@ -5,6 +5,10 @@ import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ChatPage from './components/ChatPage';
 import PeoplePage from './components/PeoplePage';
+import RequestsPage from './components/RequestsPage';
+import ConnectionsPage from './components/ConnectionsPage';
+import ViewProfilePage from './components/ViewProfilePage';
+import EditProfilePage from './components/EditProfilePage';
 import StatusPage from './components/StatusPage';
 import LandingPage from './components/LandingPage';
 import { getCurrentUser } from './api';
@@ -64,7 +68,11 @@ function App() {
       <Route path="/register" element={user ? <Navigate to="/chat" replace /> : <Register />} />
       <Route path="/forgot-password" element={user ? <Navigate to="/chat" replace /> : <ForgotPassword />} />
       <Route path="/chat" element={user ? <ChatPage user={user} onLogoutComplete={handleLoggedOut} /> : <Navigate to="/login" />} />
-      <Route path="/people" element={user ? <PeoplePage user={user} /> : <Navigate to="/login" />} />
+      <Route path="/view/profile" element={user ? <ViewProfilePage /> : <Navigate to="/login" />} />
+      <Route path="/edit/profile" element={user ? <EditProfilePage /> : <Navigate to="/login" />} />
+      <Route path="/people" element={user ? <PeoplePage /> : <Navigate to="/login" />} />
+      <Route path="/requests" element={user ? <RequestsPage /> : <Navigate to="/login" />} />
+      <Route path="/connections" element={user ? <ConnectionsPage /> : <Navigate to="/login" />} />
       <Route path="/status" element={user ? <StatusPage user={user} /> : <Navigate to="/login" />} />
       <Route path="*" element={<Navigate to={user ? '/chat' : '/'} />} />
     </Routes>

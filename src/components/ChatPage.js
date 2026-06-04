@@ -1,4 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FiEdit2,
+  FiEye,
+  FiFileText,
+  FiImage,
+  FiLogOut,
+  FiMapPin,
+  FiMic,
+  FiMoreVertical,
+  FiPaperclip,
+  FiPhone,
+  FiPlus,
+  FiSend,
+  FiSmile,
+  FiStopCircle,
+  FiThumbsDown,
+  FiThumbsUp,
+  FiTrash2,
+  FiUserPlus,
+  FiUsers,
+  FiVideo,
+  FiX
+} from 'react-icons/fi';
+import { MdDone, MdDoneAll, MdSchedule } from 'react-icons/md';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import { appConfig } from '../config';
@@ -9,20 +33,56 @@ import {
   fetchChatList,
   fetchConnectionRequests,
   fetchContacts,
+  fetchGroupDetails,
   fetchGroupMessages,
   fetchGroups,
   fetchMessages,
   leaveGroup,
   logoutUser,
   rejectConnectionRequest,
+  removeGroupMember,
   searchUsers,
   sendConnectionRequest,
   sendInviteEmail,
   subscribeToPush,
+  updateGroup,
   uploadChatMedia
 } from '../api';
 
-const emojiSet = ['\u{1F600}', '\u{1F602}', '\u{1F60D}', '\u{1F525}', '\u2764\uFE0F', '\u{1F44D}', '\u{1F389}', '\u{1F60E}', '\u{1F91D}', '\u{1F64C}', '\u{1F973}', '\u2728'];
+const emojiGroups = [
+  {
+    label: 'Smileys',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '🥹', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '😗', '😎', '🤩', '🥳', '😇', '🤗', '🤔', '🫡', '🤭', '🤫', '😴', '😌', '🙃', '😬', '🥺', '😢', '😭', '😤', '😡', '🤯', '😱', '😅', '😮', '😏', '🤤']
+  },
+  {
+    label: 'People',
+    emojis: ['👍', '👎', '👏', '🙌', '🙏', '🤝', '👋', '🤟', '👌', '✌️', '🤞', '💪', '🫶', '🫡', '🙋', '🤦', '🤷', '💃', '🕺', '🏃', '👨‍💻', '👩‍💻', '🧑‍💻', '👨‍👩‍👧', '👨‍👩‍👦', '🧑‍🤝‍🧑']
+  },
+  {
+    label: 'Nature',
+    emojis: ['❤️', '🩷', '🧡', '💛', '💚', '🩵', '💙', '💜', '🖤', '🤍', '💐', '🌹', '🌸', '🌼', '🌻', '🍀', '🌿', '🌈', '☀️', '🌤️', '🌙', '⭐', '✨', '⚡', '🔥', '💧', '🌊']
+  },
+  {
+    label: 'Food',
+    emojis: ['🍎', '🍕', '🍔', '🍟', '🌮', '🌯', '🍜', '🍣', '🍩', '🍪', '🎂', '🍫', '🍿', '☕', '🧋', '🥤', '🍹', '🍉', '🍓', '🍇']
+  },
+  {
+    label: 'Travel',
+    emojis: ['🚗', '🚌', '🚕', '✈️', '🚀', '🛵', '🚲', '🛶', '⛵', '🏝️', '🏖️', '🏔️', '🗺️', '🧭', '🏕️', '🏙️', '🌆', '🌉']
+  },
+  {
+    label: 'Activities',
+    emojis: ['⚽', '🏏', '🏀', '🎾', '🏐', '🎮', '🕹️', '🎯', '🎲', '🎵', '🎧', '🎤', '🎬', '📸', '🎉', '🎊', '🏆', '🥇', '🎁', '🧩']
+  },
+  {
+    label: 'Objects',
+    emojis: ['📱', '💻', '⌚', '📷', '🎥', '💡', '📚', '📝', '📌', '📎', '✂️', '🔒', '🔑', '💰', '🪙', '💎', '🧸', '🛍️', '🎈', '🕯️']
+  },
+  {
+    label: 'Symbols',
+    emojis: ['✅', '❌', '⭕', '❗', '❓', '💯', '💢', '💤', '🆗', '🆒', '🆕', '🔔', '📣', '⬆️', '⬇️', '➡️', '⬅️', '☑️', '⚠️', '🚫']
+  }
+];
 const stickerSet = ['\u{1F389}', '\u{1F525}', '\u{1F4AF}', '\u{1F602}', '\u{1F973}', '\u{1F929}', '\u{1F63A}', '\u{1F680}'];
 const rtcConfig = {
   iceServers: [
@@ -88,9 +148,16 @@ const buildChatPreview = (item) => {
   }
   const attachments = item.attachments || item.lastMessage?.attachments || [];
   if (attachments.length > 0) {
+    if (attachments.some((entry) => entry?.mimeType?.startsWith('audio/'))) return 'Voice message';
     return attachments.every((entry) => entry.category === 'image') ? 'Photo' : 'Attachment';
   }
   return item.lastMessage?.content || 'No messages yet';
+};
+
+const formatRecordingTime = (totalSeconds) => {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
 const readFileAsDataUrl = (file) =>
@@ -112,6 +179,71 @@ const getReactionCount = (message, value) => (message.reactions || []).filter((r
 const getUserReaction = (message, userId) => (message.reactions || []).find((reaction) => reaction.user === userId || reaction.user?._id === userId)?.value || '';
 
 const buildLocationMapUrl = (latitude, longitude) => `https://www.google.com/maps?q=${latitude},${longitude}`;
+const normalizeGroupRecord = (group) => ({ ...group, group: true });
+const escapeMentionPattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const renderMessageStatusIcon = (status) => {
+  if (status === 'read') {
+    return <MdDoneAll className="message-status-icon" aria-hidden="true" />;
+  }
+
+  if (status === 'delivered') {
+    return <MdDoneAll className="message-status-icon" aria-hidden="true" />;
+  }
+
+  if (status === 'sent') {
+    return <MdDone className="message-status-icon" aria-hidden="true" />;
+  }
+
+  return <MdSchedule className="message-status-icon" aria-hidden="true" />;
+};
+
+const renderMessageWithMentions = (content, mentions = []) => {
+  if (!content) return null;
+  if (!Array.isArray(mentions) || mentions.length === 0) return content;
+
+  const uniqueMentions = mentions.filter((member, index, array) => member?.username && array.findIndex((entry) => entry?.username === member.username) === index);
+  if (uniqueMentions.length === 0) return content;
+
+  const mentionPattern = new RegExp(`(@(?:${uniqueMentions.map((member) => escapeMentionPattern(member.username)).join('|')}))`, 'gi');
+  const parts = content.split(mentionPattern);
+
+  return parts.map((part, index) => {
+    const matchedMention = uniqueMentions.find((member) => part.toLowerCase() === `@${member.username}`.toLowerCase());
+    if (matchedMention) {
+      return (
+        <span key={`${matchedMention._id || matchedMention.username}-${index}`} className="message-mention">
+          {part}
+        </span>
+      );
+    }
+
+    return <span key={`text-${index}`}>{part}</span>;
+  });
+};
+
+const StreamTile = ({ stream, mode, muted = false, label, avatarLabel, accent = false }) => {
+  const mediaRef = useRef(null);
+
+  useEffect(() => {
+    if (mediaRef.current) {
+      mediaRef.current.srcObject = stream || null;
+    }
+  }, [stream]);
+
+  return (
+    <div className="call-media-card">
+      {mode === 'video' ? (
+        <video ref={mediaRef} autoPlay playsInline muted={muted} className="call-video" />
+      ) : (
+        <>
+          <audio ref={mediaRef} autoPlay muted={muted} className="sr-only-media" />
+          <div className={`call-audio-avatar ${accent ? 'accent' : ''}`}>{avatarLabel}</div>
+        </>
+      )}
+      <span>{label}</span>
+    </div>
+  );
+};
 
 const LocationPreview = ({ location }) => {
   if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) return null;
@@ -127,7 +259,9 @@ const LocationPreview = ({ location }) => {
       rel="noreferrer"
       onClick={(event) => event.stopPropagation()}
     >
-      <div className="location-card-pin">📍</div>
+      <div className="location-card-pin">
+        <FiMapPin className="ui-icon" />
+      </div>
       <div className="location-card-copy">
         <strong>{location.label || 'Shared location'}</strong>
         <span>{coordinateLabel}</span>
@@ -143,9 +277,19 @@ const MediaPreview = ({ attachment }) => {
     return <img src={source} alt={attachment.originalName} className="message-image" onClick={(event) => event.stopPropagation()} />;
   }
 
+  if (attachment.mimeType?.startsWith('audio/')) {
+    return (
+      <audio className="voice-note-player" controls preload="metadata" onClick={(event) => event.stopPropagation()}>
+        <source src={source} type={attachment.mimeType} />
+      </audio>
+    );
+  }
+
   return (
     <a className="file-chip" href={source} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
-      <span>FILE</span>
+      <span className="file-chip-badge">
+        <FiFileText className="ui-icon" />
+      </span>
       <span>{attachment.originalName}</span>
     </a>
   );
@@ -161,11 +305,15 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [historyPageInfo, setHistoryPageInfo] = useState({ hasMore: false, nextCursor: null });
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [message, setMessage] = useState('');
+  const [mentionState, setMentionState] = useState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
   const [draftSticker, setDraftSticker] = useState('');
   const [draftAttachments, setDraftAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [sharingLocation, setSharingLocation] = useState(false);
+  const [voiceRecordingState, setVoiceRecordingState] = useState({ active: false, durationSeconds: 0 });
   const [showComposerPopup, setShowComposerPopup] = useState(false);
   const [composerPopupView, setComposerPopupView] = useState('menu');
   const [activeTab, setActiveTab] = useState('chats');
@@ -174,8 +322,15 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [typingState, setTypingState] = useState({ direct: '', group: '' });
   const [groupDraft, setGroupDraft] = useState({ name: '', description: '', members: [] });
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showGroupMemberPicker, setShowGroupMemberPicker] = useState(false);
+  const [showGroupMembersModal, setShowGroupMembersModal] = useState(false);
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [showRenameGroupModal, setShowRenameGroupModal] = useState(false);
+  const [showGroupOptionsMenu, setShowGroupOptionsMenu] = useState(false);
   const [showInvitePanel, setShowInvitePanel] = useState(false);
   const [groupError, setGroupError] = useState('');
+  const [groupActionError, setGroupActionError] = useState('');
+  const [renameGroupDraft, setRenameGroupDraft] = useState({ name: '', description: '' });
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteStatus, setInviteStatus] = useState('');
   const [memberIdsToAdd, setMemberIdsToAdd] = useState([]);
@@ -185,20 +340,29 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [openMessageMenuId, setOpenMessageMenuId] = useState('');
   const [callState, setCallState] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
+  const [groupCallState, setGroupCallState] = useState(null);
+  const [incomingGroupCall, setIncomingGroupCall] = useState(null);
+  const [groupCallParticipants, setGroupCallParticipants] = useState([]);
   const [callError, setCallError] = useState('');
   const [isMicEnabled, setIsMicEnabled] = useState(true);
   const [isCameraEnabled, setIsCameraEnabled] = useState(true);
   const activeChatRef = useRef(activeChat);
   const callStateRef = useRef(callState);
   const incomingCallRef = useRef(incomingCall);
+  const groupCallStateRef = useRef(groupCallState);
   const connectionsRef = useRef(connections);
   const directTypingTimeoutRef = useRef(null);
   const groupTypingTimeoutRef = useRef(null);
   const messageEndRef = useRef(null);
+  const messagesAreaRef = useRef(null);
   const notificationPermissionRef = useRef(false);
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const messageInputRef = useRef(null);
   const peerConnectionRef = useRef(null);
+  const groupPeerConnectionsRef = useRef(new Map());
+  const groupRemoteStreamsRef = useRef(new Map());
+  const groupPendingIceCandidatesRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
@@ -208,6 +372,12 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const audioContextRef = useRef(null);
   const toneIntervalRef = useRef(null);
   const toneTimeoutRef = useRef(null);
+  const voiceRecorderRef = useRef(null);
+  const voiceRecordingStreamRef = useRef(null);
+  const voiceRecordingChunksRef = useRef([]);
+  const voiceRecordingTimerRef = useRef(null);
+  const preserveScrollRef = useRef(null);
+  const shouldStickToBottomRef = useRef(true);
   const token = localStorage.getItem('token');
 
   const stopStream = (stream) => {
@@ -265,6 +435,22 @@ export default function ChatPage({ user, onLogoutComplete }) {
     clearToneTimers();
   };
 
+  const clearVoiceRecordingTimer = () => {
+    if (voiceRecordingTimerRef.current) {
+      window.clearInterval(voiceRecordingTimerRef.current);
+      voiceRecordingTimerRef.current = null;
+    }
+  };
+
+  const resetVoiceRecorder = () => {
+    clearVoiceRecordingTimer();
+    voiceRecorderRef.current = null;
+    voiceRecordingChunksRef.current = [];
+    stopStream(voiceRecordingStreamRef.current);
+    voiceRecordingStreamRef.current = null;
+    setVoiceRecordingState({ active: false, durationSeconds: 0 });
+  };
+
   const startIncomingTone = () => {
     stopCallTone();
     const ringPattern = () => {
@@ -309,13 +495,27 @@ export default function ChatPage({ user, onLogoutComplete }) {
     }
   };
 
+  const clearGroupPeerConnections = () => {
+    groupPeerConnectionsRef.current.forEach((connection) => {
+      connection.ontrack = null;
+      connection.onicecandidate = null;
+      connection.onconnectionstatechange = null;
+      connection.close();
+    });
+    groupPeerConnectionsRef.current.clear();
+    groupRemoteStreamsRef.current.clear();
+    groupPendingIceCandidatesRef.current.clear();
+  };
+
   const clearMediaSession = () => {
     clearPeerConnection();
+    clearGroupPeerConnections();
     stopStream(localStreamRef.current);
     stopStream(remoteStreamRef.current);
     localStreamRef.current = null;
     remoteStreamRef.current = null;
     pendingIceCandidatesRef.current = [];
+    setGroupCallParticipants([]);
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
@@ -334,7 +534,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
     setChats(chatData);
     setConnections(connectionData);
-    setGroups(groupData);
+    setGroups(groupData.map(normalizeGroupRecord));
     setIncomingRequests(requestData.incoming);
     setOutgoingRequests(requestData.outgoing);
   };
@@ -390,6 +590,39 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const clearComposerExtras = () => {
     setDraftSticker('');
     setDraftAttachments([]);
+  };
+
+  const getActiveMentionState = (nextValue, selectionStart = nextValue.length) => {
+    if (!activeChat?.group) {
+      return { open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 };
+    }
+
+    const safeSelection = Number.isFinite(selectionStart) ? selectionStart : nextValue.length;
+    const textBeforeCursor = nextValue.slice(0, safeSelection);
+    const match = textBeforeCursor.match(/(^|\s)@([a-zA-Z0-9._-]*)$/);
+
+    if (!match) {
+      return { open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 };
+    }
+
+    return {
+      open: true,
+      query: match[2] || '',
+      startIndex: safeSelection - match[2].length - 1,
+      endIndex: safeSelection,
+      selectedIndex: 0
+    };
+  };
+
+  const updateMentionStateForValue = (nextValue, selectionStart) => {
+    setMentionState((prev) => {
+      const nextMentionState = getActiveMentionState(nextValue, selectionStart);
+      if (!nextMentionState.open) return nextMentionState;
+      return {
+        ...nextMentionState,
+        selectedIndex: prev.open && prev.query === nextMentionState.query ? prev.selectedIndex : 0
+      };
+    });
   };
 
   const replaceMessageInState = (updatedMessage) => {
@@ -475,7 +708,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const upsertChatItem = (messagePayload, isGroup) => {
     if (isGroup) {
       setChats((prev) => prev.map((chat) => (chat._id === messagePayload.group ? { ...chat, lastMessage: messagePayload } : chat)));
-      setGroups((prev) => prev.map((group) => (group._id === messagePayload.group ? { ...group, lastMessage: messagePayload } : group)));
+      setGroups((prev) => prev.map((group) => (group._id === messagePayload.group ? { ...group, lastMessage: messagePayload, group: true } : group)));
       return;
     }
 
@@ -531,11 +764,14 @@ export default function ChatPage({ user, onLogoutComplete }) {
     setActiveChat(resolvedChat);
 
     try {
-      const loadedMessages = resolvedChat.group
-        ? await fetchGroupMessages(resolvedChat._id, token)
-        : await fetchMessages(resolvedChat._id, token);
+      const response = resolvedChat.group
+        ? await fetchGroupMessages(resolvedChat._id, token, { limit: 30 })
+        : await fetchMessages(resolvedChat._id, token, { limit: 30 });
 
+      const loadedMessages = response.messages || [];
       setMessages(loadedMessages);
+      setHistoryPageInfo(response.pageInfo || { hasMore: false, nextCursor: null });
+      shouldStickToBottomRef.current = true;
 
       if (resolvedChat.group) {
         socket?.emit('join-group', resolvedChat._id);
@@ -544,7 +780,41 @@ export default function ChatPage({ user, onLogoutComplete }) {
       markMessagesRead(loadedMessages, resolvedChat);
     } catch (error) {
       setMessages([]);
+      setHistoryPageInfo({ hasMore: false, nextCursor: null });
       setChatError(error.response?.data?.error || 'Unable to load chat.');
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeChat || !historyPageInfo.hasMore || !historyPageInfo.nextCursor || loadingOlderMessages) return;
+
+    const scrollContainer = messagesAreaRef.current;
+    preserveScrollRef.current = scrollContainer
+      ? {
+          previousHeight: scrollContainer.scrollHeight,
+          previousTop: scrollContainer.scrollTop
+        }
+      : null;
+
+    setLoadingOlderMessages(true);
+    shouldStickToBottomRef.current = false;
+
+    try {
+      const response = activeChat.group
+        ? await fetchGroupMessages(activeChat._id, token, { limit: 30, before: historyPageInfo.nextCursor })
+        : await fetchMessages(activeChat._id, token, { limit: 30, before: historyPageInfo.nextCursor });
+
+      const olderMessages = response.messages || [];
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((entry) => entry._id));
+        const dedupedOlder = olderMessages.filter((entry) => !existingIds.has(entry._id));
+        return [...dedupedOlder, ...prev];
+      });
+      setHistoryPageInfo(response.pageInfo || { hasMore: false, nextCursor: null });
+    } catch (error) {
+      setChatError(error.response?.data?.error || 'Unable to load older messages.');
+    } finally {
+      setLoadingOlderMessages(false);
     }
   };
 
@@ -571,6 +841,33 @@ export default function ChatPage({ user, onLogoutComplete }) {
         console.error('Failed to add buffered ICE candidate:', error);
       }
     }
+  };
+
+  const upsertGroupParticipant = (participant) => {
+    if (!participant?._id) return;
+
+    setGroupCallParticipants((prev) => {
+      const existing = prev.find((entry) => entry._id === participant._id);
+      if (existing) {
+        return prev.map((entry) => (entry._id === participant._id ? { ...entry, ...participant } : entry));
+      }
+
+      return [...prev, participant];
+    });
+  };
+
+  const removeGroupParticipant = (participantId) => {
+    setGroupCallParticipants((prev) => prev.filter((entry) => entry._id !== participantId));
+    const remoteStream = groupRemoteStreamsRef.current.get(participantId);
+    stopStream(remoteStream);
+    groupRemoteStreamsRef.current.delete(participantId);
+
+    const connection = groupPeerConnectionsRef.current.get(participantId);
+    if (connection) {
+      connection.close();
+      groupPeerConnectionsRef.current.delete(participantId);
+    }
+    groupPendingIceCandidatesRef.current.delete(participantId);
   };
 
   const ensureLocalStream = async (type) => {
@@ -638,6 +935,89 @@ export default function ChatPage({ user, onLogoutComplete }) {
     return peerConnection;
   };
 
+  const flushPendingGroupCandidates = async (participantId) => {
+    const peerConnection = groupPeerConnectionsRef.current.get(participantId);
+    if (!peerConnection || !peerConnection.remoteDescription) return;
+
+    const queuedCandidates = groupPendingIceCandidatesRef.current.get(participantId) || [];
+    while (queuedCandidates.length > 0) {
+      const candidate = queuedCandidates.shift();
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.error('Failed to add buffered group ICE candidate:', error);
+      }
+    }
+    groupPendingIceCandidatesRef.current.set(participantId, queuedCandidates);
+  };
+
+  const createGroupPeerConnection = (participant, callId, type) => {
+    const participantId = participant._id;
+    const existingConnection = groupPeerConnectionsRef.current.get(participantId);
+    if (existingConnection) {
+      existingConnection.close();
+    }
+
+    const peerConnection = new RTCPeerConnection(rtcConfig);
+    groupPeerConnectionsRef.current.set(participantId, peerConnection);
+
+    let remoteStream = groupRemoteStreamsRef.current.get(participantId);
+    if (!remoteStream) {
+      remoteStream = new MediaStream();
+      groupRemoteStreamsRef.current.set(participantId, remoteStream);
+    }
+
+    peerConnection.ontrack = (event) => {
+      event.streams[0]?.getTracks().forEach((track) => {
+        if (!remoteStream.getTracks().some((entry) => entry.id === track.id)) {
+          remoteStream.addTrack(track);
+        }
+      });
+
+      upsertGroupParticipant({
+        _id: participantId,
+        username: participant.username,
+        avatar: participant.avatar || '',
+        stream: remoteStream,
+        isLocal: false
+      });
+      stopCallTone();
+      setGroupCallState((prev) => (prev && prev.callId === callId ? { ...prev, phase: 'connected' } : prev));
+    };
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate && socket) {
+        socket.emit('group-call-ice-candidate', {
+          callId,
+          recipientId: participantId,
+          candidate: event.candidate.toJSON()
+        });
+      }
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      const connectionState = peerConnection.connectionState;
+      if (connectionState === 'failed' || connectionState === 'disconnected' || connectionState === 'closed') {
+        removeGroupParticipant(participantId);
+      }
+    };
+
+    localStreamRef.current?.getTracks().forEach((track) => {
+      peerConnection.addTrack(track, localStreamRef.current);
+    });
+
+    upsertGroupParticipant({
+      _id: participantId,
+      username: participant.username,
+      avatar: participant.avatar || '',
+      stream: remoteStream,
+      isLocal: false,
+      mode: type
+    });
+
+    return peerConnection;
+  };
+
   const handleIncomingIceCandidate = async ({ callId, candidate }) => {
     if (!candidate) return;
 
@@ -661,9 +1041,32 @@ export default function ChatPage({ user, onLogoutComplete }) {
     }
   };
 
+  const handleIncomingGroupIceCandidate = async ({ participantId, candidate }) => {
+    if (!candidate || !participantId) return;
+
+    const peerConnection = groupPeerConnectionsRef.current.get(participantId);
+    if (!peerConnection || !peerConnection.remoteDescription) {
+      const queuedCandidates = groupPendingIceCandidatesRef.current.get(participantId) || [];
+      queuedCandidates.push(candidate);
+      groupPendingIceCandidatesRef.current.set(participantId, queuedCandidates);
+      return;
+    }
+
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (error) {
+      console.error('Unable to add group ICE candidate:', error);
+    }
+  };
+
   useEffect(() => {
     activeChatRef.current = activeChat;
   }, [activeChat]);
+
+  useEffect(() => {
+    setMentionState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
+    setShowGroupOptionsMenu(false);
+  }, [activeChat?._id]);
 
   useEffect(() => {
     callStateRef.current = callState;
@@ -672,6 +1075,10 @@ export default function ChatPage({ user, onLogoutComplete }) {
   useEffect(() => {
     incomingCallRef.current = incomingCall;
   }, [incomingCall]);
+
+  useEffect(() => {
+    groupCallStateRef.current = groupCallState;
+  }, [groupCallState]);
 
   useEffect(() => {
     connectionsRef.current = connections;
@@ -803,6 +1210,115 @@ export default function ChatPage({ user, onLogoutComplete }) {
       setIncomingCall(payload);
     });
 
+    socketClient.on('group-call-invite', (payload) => {
+      setCallError('');
+      startIncomingTone();
+      showSystemNotification(
+        `${payload.caller.username} started a group call`,
+        `${payload.type === 'video' ? 'Video' : 'Voice'} call in ${payload.groupName}`,
+        { tag: `group-call-${payload.callId}` }
+      );
+      setIncomingGroupCall(payload);
+    });
+
+    socketClient.on('group-call-joined', ({ callId, groupId, groupName, type, hostId, participants }) => {
+      setGroupCallState({ callId, groupId, groupName, type, hostId, phase: 'connecting' });
+      setGroupCallParticipants((prev) => {
+        const localParticipant = prev.find((entry) => entry._id === user._id) || {
+          _id: user._id,
+          username: user.username,
+          avatar: user.avatar || '',
+          stream: localStreamRef.current,
+          isLocal: true,
+          mode: type
+        };
+
+        return [localParticipant, ...(participants || []).map((participant) => ({ ...participant, isLocal: false, mode: type }))];
+      });
+    });
+
+    socketClient.on('group-call-participant-joined', async ({ callId, participant }) => {
+      if (!groupCallStateRef.current || groupCallStateRef.current.callId !== callId) return;
+
+      upsertGroupParticipant({ ...participant, isLocal: false, mode: groupCallStateRef.current.type });
+
+      try {
+        const peerConnection = createGroupPeerConnection(participant, callId, groupCallStateRef.current.type);
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        const serializedOffer = toSessionDescriptionPayload(peerConnection.localDescription);
+        if (!serializedOffer) return;
+
+        socketClient.emit('group-call-offer', {
+          callId,
+          recipientId: participant._id,
+          offer: serializedOffer
+        });
+      } catch (error) {
+        console.error('Unable to create group call offer:', error);
+      }
+    });
+
+    socketClient.on('group-call-offer', async ({ callId, sender, offer }) => {
+      try {
+        if (!groupCallStateRef.current || groupCallStateRef.current.callId !== callId || !offer) return;
+
+        const peerConnection = createGroupPeerConnection(sender, callId, groupCallStateRef.current.type);
+        const normalizedOffer = toSessionDescriptionPayload(offer);
+        if (!normalizedOffer) return;
+
+        await peerConnection.setRemoteDescription(normalizedOffer);
+        await flushPendingGroupCandidates(sender._id);
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        const serializedAnswer = toSessionDescriptionPayload(peerConnection.localDescription);
+        if (!serializedAnswer) return;
+
+        socketClient.emit('group-call-answer', {
+          callId,
+          recipientId: sender._id,
+          answer: serializedAnswer
+        });
+      } catch (error) {
+        console.error('Unable to answer group call offer:', error);
+      }
+    });
+
+    socketClient.on('group-call-answer', async ({ callId, sender, answer }) => {
+      if (!groupCallStateRef.current || groupCallStateRef.current.callId !== callId || !answer) return;
+
+      const peerConnection = groupPeerConnectionsRef.current.get(sender._id);
+      if (!peerConnection) return;
+
+      try {
+        const normalizedAnswer = toSessionDescriptionPayload(answer);
+        if (!normalizedAnswer) return;
+
+        await peerConnection.setRemoteDescription(normalizedAnswer);
+        await flushPendingGroupCandidates(sender._id);
+      } catch (error) {
+        console.error('Unable to apply group call answer:', error);
+      }
+    });
+
+    socketClient.on('group-call-ice-candidate', async ({ callId, sender, candidate }) => {
+      if (!groupCallStateRef.current || groupCallStateRef.current.callId !== callId) return;
+      await handleIncomingGroupIceCandidate({ participantId: sender._id, candidate });
+    });
+
+    socketClient.on('group-call-participant-left', ({ callId, participantId }) => {
+      if (!groupCallStateRef.current || groupCallStateRef.current.callId !== callId) return;
+      removeGroupParticipant(participantId);
+    });
+
+    socketClient.on('group-call-ended', ({ callId }) => {
+      if (!groupCallStateRef.current || groupCallStateRef.current.callId !== callId) return;
+      playEndedTone();
+      clearMediaSession();
+      setGroupCallState(null);
+      setIncomingGroupCall(null);
+    });
+
     socketClient.on('call-answer', async ({ callId, answer }) => {
       if (!peerConnectionRef.current || callStateRef.current?.callId !== callId || !answer) return;
 
@@ -850,7 +1366,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
       clearMediaSession();
       socketClient.disconnect();
     };
-  }, [token, user._id, user.username]);
+  }, [token, user._id, user.username, user.avatar]);
 
   useEffect(() => {
     refreshSidebar();
@@ -861,8 +1377,30 @@ export default function ChatPage({ user, onLogoutComplete }) {
   }, [callState, incomingCall]);
 
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (preserveScrollRef.current && messagesAreaRef.current) {
+      const { previousHeight, previousTop } = preserveScrollRef.current;
+      const nextHeight = messagesAreaRef.current.scrollHeight;
+      messagesAreaRef.current.scrollTop = previousTop + (nextHeight - previousHeight);
+      preserveScrollRef.current = null;
+      return;
+    }
+
+    if (shouldStickToBottomRef.current) {
+      messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, typingState, draftAttachments]);
+
+  const handleMessagesScroll = () => {
+    const container = messagesAreaRef.current;
+    if (!container) return;
+
+    const distanceFromBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
+    shouldStickToBottomRef.current = distanceFromBottom < 80;
+
+    if (container.scrollTop <= 60 && historyPageInfo.hasMore && !loadingOlderMessages) {
+      loadOlderMessages();
+    }
+  };
 
   useEffect(() => {
     if (searchTerm.trim().length < 2) {
@@ -881,6 +1419,20 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
     return () => clearTimeout(timeoutId);
   }, [searchTerm, token]);
+
+  useEffect(
+    () => () => {
+      if (voiceRecorderRef.current?.state === 'recording') {
+        try {
+          voiceRecorderRef.current.stop();
+        } catch (error) {
+          console.error('Unable to stop voice recorder during cleanup:', error);
+        }
+      }
+      resetVoiceRecorder();
+    },
+    []
+  );
 
   const handleAttachmentSelection = async (fileList) => {
     const files = Array.from(fileList || []);
@@ -914,8 +1466,89 @@ export default function ChatPage({ user, onLogoutComplete }) {
     }
   };
 
+  const startVoiceRecording = async () => {
+    if (voiceRecordingState.active || uploading) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof window.MediaRecorder === 'undefined') {
+      setChatError('Voice recording is not supported in this browser.');
+      return;
+    }
+
+    try {
+      setChatError('');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType =
+        ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'].find((entry) => window.MediaRecorder.isTypeSupported?.(entry)) ||
+        '';
+      const recorder = mimeType ? new window.MediaRecorder(stream, { mimeType }) : new window.MediaRecorder(stream);
+
+      voiceRecordingStreamRef.current = stream;
+      voiceRecorderRef.current = recorder;
+      voiceRecordingChunksRef.current = [];
+      setVoiceRecordingState({ active: true, durationSeconds: 0 });
+      clearVoiceRecordingTimer();
+      voiceRecordingTimerRef.current = window.setInterval(() => {
+        setVoiceRecordingState((prev) => (prev.active ? { ...prev, durationSeconds: prev.durationSeconds + 1 } : prev));
+      }, 1000);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) {
+          voiceRecordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        setChatError('Voice recording failed. Please try again.');
+        resetVoiceRecorder();
+      };
+
+      recorder.onstop = async () => {
+        const chunks = [...voiceRecordingChunksRef.current];
+        const recordedMimeType = recorder.mimeType || 'audio/webm';
+        resetVoiceRecorder();
+
+        if (chunks.length === 0) return;
+
+        setUploading(true);
+        try {
+          const blob = new Blob(chunks, { type: recordedMimeType });
+          const extension = recordedMimeType.includes('ogg') ? 'ogg' : recordedMimeType.includes('mp4') ? 'm4a' : 'webm';
+          const file = new File([blob], `voice-note-${Date.now()}.${extension}`, { type: recordedMimeType });
+          const dataUrl = await readFileAsDataUrl(file);
+          const uploaded = await uploadChatMedia(
+            {
+              fileName: file.name,
+              mimeType: file.type || 'audio/webm',
+              dataUrl
+            },
+            token
+          );
+          setDraftAttachments((prev) => [...prev, uploaded]);
+        } catch (error) {
+          setChatError(error.response?.data?.error || error.message || 'Unable to upload voice message.');
+        } finally {
+          setUploading(false);
+          setShowComposerPopup(false);
+          setComposerPopupView('menu');
+        }
+      };
+
+      recorder.start();
+      setShowComposerPopup(false);
+      setComposerPopupView('menu');
+    } catch (error) {
+      setChatError('Microphone access is required to record a voice message.');
+      resetVoiceRecorder();
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (!voiceRecorderRef.current || voiceRecorderRef.current.state !== 'recording') return;
+    voiceRecorderRef.current.stop();
+  };
+
   const sendTypingEvent = (nextValue) => {
     setMessage(nextValue);
+    updateMentionStateForValue(nextValue, messageInputRef.current?.selectionStart ?? nextValue.length);
     if (!activeChat || !socket) return;
 
     if (activeChat.group) {
@@ -936,7 +1569,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
   const handleSendMessage = () => {
     const trimmedMessage = message.trim();
-    if ((!trimmedMessage && !draftSticker && draftAttachments.length === 0) || !activeChat || !socket || uploading) return;
+    if ((!trimmedMessage && !draftSticker && draftAttachments.length === 0) || !activeChat || !socket || uploading || voiceRecordingState.active) return;
 
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage = {
@@ -959,7 +1592,12 @@ export default function ChatPage({ user, onLogoutComplete }) {
       tempId,
       content: trimmedMessage,
       sticker: draftSticker,
-      attachmentIds: draftAttachments.map((entry) => entry._id)
+      attachmentIds: draftAttachments.map((entry) => entry._id),
+      mentionIds: activeChat.group
+        ? (activeChat.members || [])
+            .filter((member) => new RegExp(`(^|\\s)@${member.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[\\s,!.?:;]|$)`, 'i').test(trimmedMessage))
+            .map((member) => member._id)
+        : []
     };
 
     if (activeChat.group) {
@@ -969,6 +1607,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
     }
 
     setMessage('');
+    setMentionState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
     clearComposerExtras();
     setShowComposerPopup(false);
     setComposerPopupView('menu');
@@ -977,9 +1616,9 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const handleConnectionRequest = async (targetUser) => {
     try {
       await sendConnectionRequest(targetUser._id, token);
-      setOutgoingRequests((prev) => [...prev.filter((entry) => entry._id !== targetUser._id), { ...targetUser, connectionStatus: 'outgoing' }]);
+      setOutgoingRequests((prev) => [...prev.filter((entry) => entry._id !== targetUser._id), { ...targetUser, connectionStatus: 'interested' }]);
       setIncomingRequests((prev) => prev.filter((entry) => entry._id !== targetUser._id));
-      updateSearchStatus(targetUser._id, 'outgoing');
+      updateSearchStatus(targetUser._id, 'interested');
       await refreshSidebar();
     } catch (error) {
       console.error('Unable to send request:', error);
@@ -1061,9 +1700,11 @@ export default function ChatPage({ user, onLogoutComplete }) {
         token
       );
 
-      setGroups((prev) => [group, ...prev]);
-      setChats((prev) => [group, ...prev]);
+      const normalizedGroup = normalizeGroupRecord(group);
+      setGroups((prev) => [normalizedGroup, ...prev]);
+      setChats((prev) => [normalizedGroup, ...prev]);
       setShowCreateGroup(false);
+      setShowGroupMemberPicker(false);
       setGroupDraft({ name: '', description: '', members: [] });
       setGroupError('');
       setActiveTab('groups');
@@ -1077,11 +1718,86 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
     try {
       const updatedGroup = await addGroupMembers(activeChat._id, memberIdsToAdd, token);
-      setGroups((prev) => prev.map((entry) => (entry._id === updatedGroup._id ? { ...entry, ...updatedGroup } : entry)));
-      setActiveChat((prev) => (prev ? { ...prev, ...updatedGroup } : prev));
+      const normalizedGroup = normalizeGroupRecord(updatedGroup);
+      setGroups((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setChats((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setActiveChat((prev) => (prev ? { ...prev, ...normalizedGroup } : prev));
       setMemberIdsToAdd([]);
+      setGroupActionError('');
+      setShowAddMembersModal(false);
     } catch (error) {
-      console.error('Unable to add members:', error);
+      setGroupActionError(error.response?.data?.error || 'Unable to add members.');
+    }
+  };
+
+  const handleOpenGroupMembers = async () => {
+    if (!activeChat?.group) return;
+
+    try {
+      const latestGroup = await fetchGroupDetails(activeChat._id, token);
+      const normalizedGroup = normalizeGroupRecord(latestGroup);
+      setGroups((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setChats((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setActiveChat((prev) => (prev ? { ...prev, ...normalizedGroup } : prev));
+      setGroupActionError('');
+      setShowGroupMembersModal(true);
+    } catch (error) {
+      setGroupActionError(error.response?.data?.error || 'Unable to load group members.');
+    }
+  };
+
+  const handleOpenRenameGroup = () => {
+    if (!activeChat?.group) return;
+    setRenameGroupDraft({
+      name: activeChat.name || '',
+      description: activeChat.description || ''
+    });
+    setGroupActionError('');
+    setShowRenameGroupModal(true);
+  };
+
+  const handleOpenAddMembers = () => {
+    setMemberIdsToAdd([]);
+    setGroupActionError('');
+    setShowAddMembersModal(true);
+  };
+
+  const handleRenameGroup = async (event) => {
+    event.preventDefault();
+    if (!activeChat?.group) return;
+
+    try {
+      const updatedGroup = await updateGroup(
+        activeChat._id,
+        {
+          name: renameGroupDraft.name,
+          description: renameGroupDraft.description
+        },
+        token
+      );
+      const normalizedGroup = normalizeGroupRecord(updatedGroup);
+      setGroups((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setChats((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setActiveChat((prev) => (prev ? { ...prev, ...normalizedGroup } : prev));
+      setGroupActionError('');
+      setShowRenameGroupModal(false);
+    } catch (error) {
+      setGroupActionError(error.response?.data?.error || 'Unable to rename group.');
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!activeChat?.group) return;
+
+    try {
+      const updatedGroup = await removeGroupMember(activeChat._id, memberId, token);
+      const normalizedGroup = normalizeGroupRecord(updatedGroup);
+      setGroups((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setChats((prev) => prev.map((entry) => (entry._id === normalizedGroup._id ? { ...entry, ...normalizedGroup } : entry)));
+      setActiveChat((prev) => (prev ? { ...prev, ...normalizedGroup } : prev));
+      setGroupActionError('');
+    } catch (error) {
+      setGroupActionError(error.response?.data?.error || 'Unable to remove member.');
     }
   };
 
@@ -1100,8 +1816,52 @@ export default function ChatPage({ user, onLogoutComplete }) {
     }
   };
 
+  const startGroupCall = async (type) => {
+    if (!socket || !activeChat?.group) return;
+
+    try {
+      setCallError('');
+      const callId = `group-call-${Date.now()}`;
+      await ensureLocalStream(type);
+      setGroupCallParticipants([
+        {
+          _id: user._id,
+          username: user.username,
+          avatar: user.avatar || '',
+          stream: localStreamRef.current,
+          isLocal: true,
+          mode: type
+        }
+      ]);
+      setGroupCallState({
+        callId,
+        groupId: activeChat._id,
+        groupName: activeChat.name,
+        type,
+        hostId: user._id,
+        phase: 'ringing'
+      });
+      startOutgoingTone();
+      socket.emit('group-call-start', {
+        groupId: activeChat._id,
+        callId,
+        type
+      });
+    } catch (error) {
+      console.error('Unable to start group call:', error);
+      setCallError(error.message || 'Unable to start the group call.');
+      clearMediaSession();
+      setGroupCallState(null);
+      setGroupCallParticipants([]);
+    }
+  };
+
   const startCall = async (type) => {
-    if (!socket || !activeChat || activeChat.group) return;
+    if (activeChat?.group) {
+      await startGroupCall(type);
+      return;
+    }
+    if (!socket || !activeChat) return;
 
     try {
       setCallError('');
@@ -1181,6 +1941,41 @@ export default function ChatPage({ user, onLogoutComplete }) {
     }
   };
 
+  const acceptGroupCall = async () => {
+    if (!incomingGroupCall || !socket) return;
+
+    try {
+      setCallError('');
+      await ensureLocalStream(incomingGroupCall.type);
+      setGroupCallParticipants([
+        {
+          _id: user._id,
+          username: user.username,
+          avatar: user.avatar || '',
+          stream: localStreamRef.current,
+          isLocal: true,
+          mode: incomingGroupCall.type
+        }
+      ]);
+      setGroupCallState({
+        callId: incomingGroupCall.callId,
+        groupId: incomingGroupCall.groupId,
+        groupName: incomingGroupCall.groupName,
+        type: incomingGroupCall.type,
+        hostId: incomingGroupCall.caller._id,
+        phase: 'connecting'
+      });
+      socket.emit('group-call-join', { callId: incomingGroupCall.callId });
+      stopCallTone();
+      setIncomingGroupCall(null);
+    } catch (error) {
+      console.error('Unable to join group call:', error);
+      setCallError(error.message || 'Unable to join the group call.');
+      clearMediaSession();
+      setGroupCallState(null);
+    }
+  };
+
   const rejectCall = () => {
     if (!incomingCall || !socket) return;
 
@@ -1193,7 +1988,20 @@ export default function ChatPage({ user, onLogoutComplete }) {
     setIncomingCall(null);
   };
 
+  const rejectGroupCall = () => {
+    stopCallTone();
+    setIncomingGroupCall(null);
+  };
+
   const endCall = () => {
+    if (groupCallState && socket) {
+      socket.emit('group-call-leave', { callId: groupCallState.callId });
+      playEndedTone();
+      clearMediaSession();
+      setGroupCallState(null);
+      return;
+    }
+
     if (!callState || !socket) return;
 
     socket.emit('call-ended', {
@@ -1239,11 +2047,47 @@ export default function ChatPage({ user, onLogoutComplete }) {
     return connections;
   }, [activeTab, chats, groups, connections]);
 
+  const selectedGroupMembers = useMemo(
+    () => connections.filter((entry) => groupDraft.members.includes(entry._id)),
+    [connections, groupDraft.members]
+  );
+
+  const isGroupAdmin = Boolean(activeChat?.group && (activeChat.admin?._id || activeChat.admin) === user._id);
+
+  const mentionSuggestions = useMemo(() => {
+    if (!mentionState.open || !activeChat?.group) return [];
+
+    const members = (activeChat.members || []).filter((member) => (member._id || member) !== user._id);
+    const query = mentionState.query.trim().toLowerCase();
+
+    if (!query) return members.slice(0, 6);
+
+    return members
+      .filter((member) => member.username?.toLowerCase().includes(query))
+      .slice(0, 6);
+  }, [activeChat, mentionState, user._id]);
+
+  const insertMention = (member) => {
+    if (!member || mentionState.startIndex < 0) return;
+
+    const nextValue = `${message.slice(0, mentionState.startIndex)}@${member.username} ${message.slice(mentionState.endIndex)}`;
+    setMessage(nextValue);
+    setMentionState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
+
+    requestAnimationFrame(() => {
+      const nextCursorPosition = mentionState.startIndex + member.username.length + 2;
+      if (messageInputRef.current) {
+        messageInputRef.current.focus();
+        messageInputRef.current.setSelectionRange(nextCursorPosition, nextCursorPosition);
+      }
+    });
+  };
+
   const renderSearchAction = (entry) => {
-    if (entry.connectionStatus === 'connected') {
+    if (entry.connectionStatus === 'accepted' || entry.connectionStatus === 'connected') {
       return <span className="status-label connected">Open Chat</span>;
     }
-    if (entry.connectionStatus === 'outgoing') {
+    if (entry.connectionStatus === 'interested' || entry.connectionStatus === 'outgoing') {
       return <span className="status-label pending">Request Sent</span>;
     }
     if (entry.connectionStatus === 'incoming') {
@@ -1320,13 +2164,16 @@ export default function ChatPage({ user, onLogoutComplete }) {
           )}
         </div>
         <div className="app-navbar-actions">
-          <button className="ghost-button" onClick={() => setShowInvitePanel((prev) => !prev)}>
+          <button className="ghost-button button-with-icon" onClick={() => setShowInvitePanel((prev) => !prev)}>
+            <FiUserPlus className="ui-icon" />
             Invite Friends
           </button>
-          <button className="ghost-button" onClick={() => setShowCreateGroup((prev) => !prev)}>
+          <button className="ghost-button button-with-icon" onClick={() => setShowCreateGroup((prev) => !prev)}>
+            <FiUsers className="ui-icon" />
             New Group
           </button>
-          <button className="ghost-button" onClick={handleLogout}>
+          <button className="ghost-button button-with-icon" onClick={handleLogout}>
+            <FiLogOut className="ui-icon" />
             Logout
           </button>
         </div>
@@ -1343,6 +2190,14 @@ export default function ChatPage({ user, onLogoutComplete }) {
           <div className="sidebar-profile-meta">
             <span>Community ready</span>
             <span>{connections.length} connections</span>
+          </div>
+          <div className="sidebar-profile-actions">
+            <button className="ghost-button icon-button profile-icon-button" type="button" onClick={() => navigate('/view/profile')} title="View Profile" aria-label="View Profile">
+              <FiEye className="ui-icon" />
+            </button>
+            <button className="ghost-button icon-button profile-icon-button" type="button" onClick={() => navigate('/edit/profile')} title="Edit Profile" aria-label="Edit Profile">
+              <FiEdit2 className="ui-icon" />
+            </button>
           </div>
         </div>
 
@@ -1372,24 +2227,40 @@ export default function ChatPage({ user, onLogoutComplete }) {
               onChange={(e) => setGroupDraft((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Description"
             />
-            <div className="contact-picker">
-              {availableConnections.map((entry) => (
-                <label key={entry._id} className="picker-option">
-                  <input
-                    type="checkbox"
-                    checked={groupDraft.members.includes(entry._id)}
-                    onChange={() =>
-                      setGroupDraft((prev) => ({
-                        ...prev,
-                        members: prev.members.includes(entry._id)
-                          ? prev.members.filter((id) => id !== entry._id)
-                          : [...prev.members, entry._id]
-                      }))
-                    }
-                  />
-                  <span>{entry.username}</span>
-                </label>
-              ))}
+            <div className="group-picker-summary">
+              <div className="group-picker-summary-head">
+                <div>
+                  <strong>Select people</strong>
+                  <p>{selectedGroupMembers.length > 0 ? `${selectedGroupMembers.length} selected` : 'No people selected yet'}</p>
+                </div>
+                <button className="ghost-button" type="button" onClick={() => setShowGroupMemberPicker(true)}>
+                  Choose People
+                </button>
+              </div>
+              {selectedGroupMembers.length > 0 ? (
+                <div className="group-members selected-members">
+                  {selectedGroupMembers.map((member) => (
+                    <button
+                      key={member._id}
+                      type="button"
+                      className="member-pill removable"
+                      onClick={() =>
+                        setGroupDraft((prev) => ({
+                          ...prev,
+                          members: prev.members.filter((id) => id !== member._id)
+                        }))
+                      }
+                    >
+                      <span>{member.username}</span>
+                      <span className="member-pill-remove">
+                        <FiX className="ui-icon" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state slim group-picker-empty">Selected people will appear here.</div>
+              )}
             </div>
             <button type="submit">Create</button>
           </form>
@@ -1458,12 +2329,99 @@ export default function ChatPage({ user, onLogoutComplete }) {
                 {!activeChat.group && (
                   <>
                     <button className="ghost-button icon-button" onClick={() => startCall('voice')} title="Voice call" aria-label="Voice call">
-                      📞
+                      <FiPhone className="ui-icon" />
                     </button>
                     <button className="ghost-button icon-button" onClick={() => startCall('video')} title="Video call" aria-label="Video call">
-                      🎥
+                      <FiVideo className="ui-icon" />
                     </button>
                   </>
+                )}
+                {activeChat.group && (
+                  <div className="group-options-anchor">
+                    <button
+                      className="ghost-button icon-button"
+                      type="button"
+                      onClick={() => setShowGroupOptionsMenu((prev) => !prev)}
+                      title="Group options"
+                      aria-label="Group options"
+                    >
+                      <FiMoreVertical className="ui-icon" />
+                    </button>
+                    {showGroupOptionsMenu && (
+                      <div className="group-options-menu">
+                        <button
+                          type="button"
+                          className="group-options-item"
+                          onClick={() => {
+                            setShowGroupOptionsMenu(false);
+                            startGroupCall('voice');
+                          }}
+                        >
+                          <FiPhone className="ui-icon" />
+                          Start Voice Call
+                        </button>
+                        <button
+                          type="button"
+                          className="group-options-item"
+                          onClick={() => {
+                            setShowGroupOptionsMenu(false);
+                            startGroupCall('video');
+                          }}
+                        >
+                          <FiVideo className="ui-icon" />
+                          Start Video Call
+                        </button>
+                        <button
+                          type="button"
+                          className="group-options-item"
+                          onClick={() => {
+                            setShowGroupOptionsMenu(false);
+                            handleOpenGroupMembers();
+                          }}
+                        >
+                          <FiUsers className="ui-icon" />
+                          View Members
+                        </button>
+                        {isGroupAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              className="group-options-item"
+                              onClick={() => {
+                                setShowGroupOptionsMenu(false);
+                                handleOpenAddMembers();
+                              }}
+                            >
+                              <FiUserPlus className="ui-icon" />
+                              Add Members
+                            </button>
+                            <button
+                              type="button"
+                              className="group-options-item"
+                              onClick={() => {
+                                setShowGroupOptionsMenu(false);
+                                handleOpenRenameGroup();
+                              }}
+                            >
+                              <FiEdit2 className="ui-icon" />
+                              Change Group Name
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          className="group-options-item danger"
+                          onClick={() => {
+                            setShowGroupOptionsMenu(false);
+                            handleLeaveGroup();
+                          }}
+                        >
+                          <FiLogOut className="ui-icon" />
+                          Leave Group
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {callState && <button className="danger-button" onClick={endCall}>End Call</button>}
               </div>
@@ -1471,44 +2429,11 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
             {callError && <div className="chat-error-banner">{callError}</div>}
 
-            {activeChat.group && (
-              <div className="group-panel inline">
-                <div className="group-members">
-                  {(activeChat.members || []).map((member) => (
-                    <span key={member._id || member} className="member-pill">
-                      {member.username || 'Member'}
-                    </span>
-                  ))}
-                </div>
-                {availableMembersToAdd.length > 0 && (
-                  <>
-                    <div className="contact-picker compact">
-                      {availableMembersToAdd.map((entry) => (
-                        <label key={entry._id} className="picker-option">
-                          <input
-                            type="checkbox"
-                            checked={memberIdsToAdd.includes(entry._id)}
-                            onChange={() =>
-                              setMemberIdsToAdd((prev) =>
-                                prev.includes(entry._id) ? prev.filter((id) => id !== entry._id) : [...prev, entry._id]
-                              )
-                            }
-                          />
-                          <span>{entry.username}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <button className="ghost-button" onClick={handleAddMembers}>Add Members</button>
-                  </>
-                )}
-                <div className="group-actions">
-                  <button className="danger-button" onClick={handleLeaveGroup}>Leave Group</button>
-                </div>
-              </div>
-            )}
+            {activeChat.group && groupActionError && <div className="chat-error-banner">{groupActionError}</div>}
 
-            <div className="messages-area">
+            <div className="messages-area" ref={messagesAreaRef} onScroll={handleMessagesScroll}>
               {chatError && <div className="chat-error-banner">{chatError}</div>}
+              {loadingOlderMessages && <div className="history-loading-indicator">Loading older messages...</div>}
               {messages.map((msg) => {
                 const isOwnMessage = msg.sender._id === user._id;
                 const callLabel = msg.callDetails
@@ -1560,7 +2485,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                       <>
                         {msg.location && <LocationPreview location={msg.location} />}
                         {msg.sticker && <div className="sticker-bubble">{msg.sticker}</div>}
-                        {msg.content && <div>{msg.content}</div>}
+                        {msg.content && <div>{renderMessageWithMentions(msg.content, msg.mentions)}</div>}
                         {msg.attachments?.length > 0 && (
                           <div className="media-grid">
                             {msg.attachments.map((attachment) => (
@@ -1572,8 +2497,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
                     )}
                     {(likeCount > 0 || dislikeCount > 0) && !msg.isDeleted && msg.type !== 'call' && (
                       <div className="message-reaction-summary">
-                        {likeCount > 0 && <span className={currentReaction === 'like' ? 'active' : ''}>👍 {likeCount}</span>}
-                        {dislikeCount > 0 && <span className={currentReaction === 'dislike' ? 'active' : ''}>👎 {dislikeCount}</span>}
+                        {likeCount > 0 && <span className={currentReaction === 'like' ? 'active' : ''}><FiThumbsUp className="ui-icon" /> {likeCount}</span>}
+                        {dislikeCount > 0 && <span className={currentReaction === 'dislike' ? 'active' : ''}><FiThumbsDown className="ui-icon" /> {dislikeCount}</span>}
                       </div>
                     )}
                     {openMessageMenuId === msg._id && canOpenMessageMenu && (
@@ -1581,11 +2506,11 @@ export default function ChatPage({ user, onLogoutComplete }) {
                         {canEditMessage && (
                           <>
                             <button className="message-menu-item" onClick={() => beginEditMessage(msg)}>
-                              <span className="message-menu-item-icon">✏️</span>
+                              <span className="message-menu-item-icon"><FiEdit2 className="ui-icon" /></span>
                               <span>Edit</span>
                             </button>
                             <button className="message-menu-item delete" onClick={() => handleDeleteMessage(msg._id)}>
-                              <span className="message-menu-item-icon">🗑️</span>
+                              <span className="message-menu-item-icon"><FiTrash2 className="ui-icon" /></span>
                               <span>Delete</span>
                             </button>
                           </>
@@ -1593,11 +2518,11 @@ export default function ChatPage({ user, onLogoutComplete }) {
                         {!msg.isDeleted && (
                           <>
                             <button className="message-menu-item" onClick={() => handleReactionToggle(msg._id, 'like')}>
-                              <span className="message-menu-item-icon">👍</span>
+                              <span className="message-menu-item-icon"><FiThumbsUp className="ui-icon" /></span>
                               <span>{currentReaction === 'like' ? 'Remove Like' : 'Like'}</span>
                             </button>
                             <button className="message-menu-item" onClick={() => handleReactionToggle(msg._id, 'dislike')}>
-                              <span className="message-menu-item-icon">👎</span>
+                              <span className="message-menu-item-icon"><FiThumbsDown className="ui-icon" /></span>
                               <span>{currentReaction === 'dislike' ? 'Remove Dislike' : 'Dislike'}</span>
                             </button>
                           </>
@@ -1607,7 +2532,27 @@ export default function ChatPage({ user, onLogoutComplete }) {
                     <div className="message-meta">
                       <small>{formatTime(msg.timestamp)}</small>
                       {msg.editedAt && <small>Edited</small>}
-                      {isOwnMessage && <span className={`message-status ${msg.status || 'sent'}`}>{msg.status || 'sent'}</span>}
+                      {isOwnMessage && (
+                        <span
+                          className={`message-status ${msg.status || 'sent'}`}
+                          title={
+                            msg.status === 'read'
+                              ? 'Seen'
+                              : msg.status === 'delivered'
+                                ? 'Delivered'
+                                : 'Sent'
+                          }
+                          aria-label={
+                            msg.status === 'read'
+                              ? 'Seen'
+                              : msg.status === 'delivered'
+                                ? 'Delivered'
+                                : 'Sent'
+                          }
+                        >
+                          {renderMessageStatusIcon(msg.status || 'sent')}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -1621,8 +2566,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
                 {draftAttachments.map((attachment) => (
                   <div key={attachment._id} className="draft-card">
                     <MediaPreview attachment={attachment} />
-                    <button className="draft-remove" onClick={() => setDraftAttachments((prev) => prev.filter((entry) => entry._id !== attachment._id))}>
-                      x
+                    <button className="draft-remove" type="button" onClick={() => setDraftAttachments((prev) => prev.filter((entry) => entry._id !== attachment._id))}>
+                      <FiX className="ui-icon" />
                     </button>
                   </div>
                 ))}
@@ -1632,7 +2577,9 @@ export default function ChatPage({ user, onLogoutComplete }) {
             {draftSticker && (
               <div className="draft-sticker">
                 <span>{draftSticker}</span>
-                <button className="draft-remove" onClick={() => setDraftSticker('')}>x</button>
+                <button className="draft-remove" type="button" onClick={() => setDraftSticker('')}>
+                  <FiX className="ui-icon" />
+                </button>
               </div>
             )}
 
@@ -1647,7 +2594,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                   title="Open attachments, emoji, and stickers"
                   aria-label="Open attachments, emoji, and stickers"
                 >
-                  <span>+</span>
+                  <FiPaperclip className="ui-icon" />
                   <small>Attach</small>
                 </button>
                 {showComposerPopup && (
@@ -1661,7 +2608,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                           setComposerPopupView('menu');
                         }}
                       >
-                        x
+                        <FiX className="ui-icon" />
                       </button>
                     </div>
                     {composerPopupView === 'menu' ? (
@@ -1672,7 +2619,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                             setComposerPopupView('emoji');
                           }}
                         >
-                          <span>😀</span>
+                          <FiSmile className="ui-icon" />
                           <small>Emoji</small>
                         </button>
                         <button
@@ -1683,7 +2630,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                             fileInputRef.current?.click();
                           }}
                         >
-                          <span>📎</span>
+                          <FiPaperclip className="ui-icon" />
                           <small>Attachment</small>
                         </button>
                         <button
@@ -1694,7 +2641,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                             photoInputRef.current?.click();
                           }}
                         >
-                          <span>🖼️</span>
+                          <FiImage className="ui-icon" />
                           <small>Photo</small>
                         </button>
                         <button
@@ -1702,30 +2649,42 @@ export default function ChatPage({ user, onLogoutComplete }) {
                           onClick={handleShareLocation}
                           disabled={sharingLocation}
                         >
-                          <span>📍</span>
+                          <FiMapPin className="ui-icon" />
                           <small>{sharingLocation ? 'Sharing...' : 'Location'}</small>
+                        </button>
+                        <button
+                          className={`picker-action-tile ${voiceRecordingState.active ? 'recording' : ''}`}
+                          onClick={voiceRecordingState.active ? stopVoiceRecording : startVoiceRecording}
+                          disabled={uploading}
+                        >
+                          {voiceRecordingState.active ? <FiStopCircle className="ui-icon" /> : <FiMic className="ui-icon" />}
+                          <small>{voiceRecordingState.active ? 'Stop Voice' : 'Voice Note'}</small>
                         </button>
                       </div>
                     ) : (
                       <>
-                        <div className="picker-popup-section">
-                          <strong>Emojis</strong>
-                        </div>
-                        <div className="picker-panel">
-                          {emojiSet.map((emoji) => (
-                            <button
-                              key={emoji}
-                              className="picker-chip"
-                              onClick={() => {
-                                setMessage((prev) => `${prev}${emoji}`);
-                                setShowComposerPopup(false);
-                                setComposerPopupView('menu');
-                              }}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
+                        {emojiGroups.map((group) => (
+                          <div key={group.label}>
+                            <div className="picker-popup-section">
+                              <strong>{group.label}</strong>
+                            </div>
+                            <div className="picker-panel">
+                              {group.emojis.map((emoji) => (
+                                <button
+                                  key={`${group.label}-${emoji}`}
+                                  className="picker-chip"
+                                  onClick={() => {
+                                    setMessage((prev) => `${prev}${emoji}`);
+                                    setShowComposerPopup(false);
+                                    setComposerPopupView('menu');
+                                  }}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                         <div className="picker-popup-section">
                           <strong>Stickers</strong>
                         </div>
@@ -1749,21 +2708,82 @@ export default function ChatPage({ user, onLogoutComplete }) {
                   </div>
                 )}
               </div>
-              {(uploading || sharingLocation) && <span className="upload-status">{uploading ? 'Uploading...' : 'Sharing location...'}</span>}
+              {(uploading || sharingLocation || voiceRecordingState.active) && (
+                <span className={`upload-status ${voiceRecordingState.active ? 'recording' : ''}`}>
+                  {uploading
+                    ? 'Uploading...'
+                    : voiceRecordingState.active
+                      ? `Recording voice message ${formatRecordingTime(voiceRecordingState.durationSeconds)}`
+                      : 'Sharing location...'}
+                </span>
+              )}
               <input ref={photoInputRef} type="file" accept="image/*" multiple hidden onChange={(e) => handleAttachmentSelection(e.target.files)} />
               <input ref={fileInputRef} type="file" multiple hidden onChange={(e) => handleAttachmentSelection(e.target.files)} />
             </div>
 
-            <div className="composer">
+            <div className="composer composer-with-mentions">
+              {mentionState.open && mentionSuggestions.length > 0 && (
+                <div className="mention-popup">
+                  {mentionSuggestions.map((member, index) => (
+                    <button
+                      key={member._id}
+                      type="button"
+                      className={`mention-option ${index === Math.min(mentionState.selectedIndex, mentionSuggestions.length - 1) ? 'active' : ''}`}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        insertMention(member);
+                      }}
+                    >
+                      <strong>@{member.username}</strong>
+                      <small>{member.email || 'Group member'}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
               <input
+                ref={messageInputRef}
                 value={message}
                 onChange={(e) => sendTypingEvent(e.target.value)}
+                onClick={(e) => updateMentionStateForValue(e.target.value, e.target.selectionStart)}
                 onKeyDown={(e) => {
+                  if (mentionState.open && mentionSuggestions.length > 0) {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setMentionState((prev) => ({
+                        ...prev,
+                        selectedIndex: Math.min(prev.selectedIndex + 1, mentionSuggestions.length - 1)
+                      }));
+                      return;
+                    }
+
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setMentionState((prev) => ({
+                        ...prev,
+                        selectedIndex: Math.max(prev.selectedIndex - 1, 0)
+                      }));
+                      return;
+                    }
+
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      insertMention(mentionSuggestions[Math.min(mentionState.selectedIndex, mentionSuggestions.length - 1)]);
+                      return;
+                    }
+
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setMentionState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
+                      return;
+                    }
+                  }
+
                   if (e.key === 'Enter') handleSendMessage();
                 }}
                 placeholder="Type a message"
               />
-              <button onClick={handleSendMessage} disabled={uploading}>
+              <button onClick={handleSendMessage} disabled={uploading || voiceRecordingState.active}>
+                <FiSend className="ui-icon" />
                 Send
               </button>
             </div>
@@ -1782,6 +2802,19 @@ export default function ChatPage({ user, onLogoutComplete }) {
           <div className="group-actions">
             <button className="ghost-button" onClick={acceptCall}>Accept</button>
             <button className="danger-button" onClick={rejectCall}>Reject</button>
+          </div>
+        </div>
+      )}
+
+      {incomingGroupCall && (
+        <div className="call-banner">
+          <div>
+            <strong>{incomingGroupCall.groupName}</strong>
+            <span>{incomingGroupCall.caller.username} started a {incomingGroupCall.type} group call</span>
+          </div>
+          <div className="group-actions">
+            <button className="ghost-button" onClick={acceptGroupCall}>Join</button>
+            <button className="danger-button" onClick={rejectGroupCall}>Dismiss</button>
           </div>
         </div>
       )}
@@ -1835,7 +2868,103 @@ export default function ChatPage({ user, onLogoutComplete }) {
         </div>
       )}
 
-      {(callState || incomingCall) && <audio ref={remoteAudioRef} autoPlay playsInline className="sr-only-media" />}
+      {groupCallState && (
+        <div className="call-modal-scrim">
+          <div className="call-modal-card">
+            <div className="call-panel">
+              <div className="call-panel-header">
+                <div>
+                  <strong>{groupCallState.type === 'video' ? 'Group Video Call' : 'Group Voice Call'}</strong>
+                  <span>
+                    {groupCallState.phase === 'ringing' && `Calling ${groupCallState.groupName}...`}
+                    {groupCallState.phase === 'connecting' && 'Joining group call...'}
+                    {groupCallState.phase === 'connected' && `${groupCallParticipants.length} participants connected`}
+                  </span>
+                </div>
+                <div className="call-inline-actions">
+                  <button className="ghost-button" onClick={toggleMicrophone}>
+                    {isMicEnabled ? 'Mute' : 'Unmute'}
+                  </button>
+                  {groupCallState.type === 'video' && (
+                    <button className="ghost-button" onClick={toggleCamera}>
+                      {isCameraEnabled ? 'Camera Off' : 'Camera On'}
+                    </button>
+                  )}
+                  <button className="danger-button" onClick={endCall}>
+                    {groupCallState.hostId === user._id ? 'End' : 'Leave'}
+                  </button>
+                </div>
+              </div>
+
+              <div className={`call-media-grid ${groupCallState.type === 'voice' ? 'voice-only' : ''}`}>
+                {groupCallParticipants.map((participant) => (
+                  <StreamTile
+                    key={participant._id}
+                    stream={participant.stream}
+                    mode={groupCallState.type}
+                    muted={participant.isLocal}
+                    label={participant.isLocal ? 'You' : participant.username}
+                    avatarLabel={getInitials(participant.username || 'Member')}
+                    accent={!participant.isLocal}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(callState || incomingCall || incomingGroupCall) && <audio ref={remoteAudioRef} autoPlay playsInline className="sr-only-media" />}
+
+      {showGroupMemberPicker && (
+        <div className="modal-scrim" onClick={() => setShowGroupMemberPicker(false)}>
+          <div className="modal-card group-picker-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Select People</h3>
+                <p>Choose the connections you want to add to this group.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowGroupMemberPicker(false)}>
+                <FiX className="ui-icon" />
+              </button>
+            </div>
+            <div className="group-picker-modal-body">
+              {connections.length > 0 ? (
+                <div className="contact-picker group-picker-list">
+                  {connections.map((entry) => (
+                    <label key={entry._id} className="picker-option picker-option-card">
+                      <input
+                        type="checkbox"
+                        checked={groupDraft.members.includes(entry._id)}
+                        onChange={() =>
+                          setGroupDraft((prev) => ({
+                            ...prev,
+                            members: prev.members.includes(entry._id)
+                              ? prev.members.filter((id) => id !== entry._id)
+                              : [...prev.members, entry._id]
+                          }))
+                        }
+                      />
+                      <div className="picker-option-copy">
+                        <strong>{entry.username}</strong>
+                        <span>{entry.email}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state slim">No connections available to add yet.</div>
+              )}
+            </div>
+            <div className="group-picker-modal-actions">
+              <span className="status-label pending">{groupDraft.members.length} selected</span>
+              <button className="ghost-button" type="button" onClick={() => setShowGroupMemberPicker(false)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showInvitePanel && (
         <div className="modal-scrim" onClick={() => setShowInvitePanel(false)}>
@@ -1852,7 +2981,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                   setInviteStatus('');
                 }}
               >
-                x
+                <FiX className="ui-icon" />
               </button>
             </div>
             <form className="modal-form" onSubmit={handleInviteSubmit}>
@@ -1873,14 +3002,124 @@ export default function ChatPage({ user, onLogoutComplete }) {
         </div>
       )}
 
+      {showGroupMembersModal && activeChat?.group && (
+        <div className="modal-scrim" onClick={() => setShowGroupMembersModal(false)}>
+          <div className="modal-card group-members-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Group Members</h3>
+                <p>Everyone currently in {activeChat.name}.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowGroupMembersModal(false)}>
+                <FiX className="ui-icon" />
+              </button>
+            </div>
+            <div className="group-members-modal-list">
+              {(activeChat.members || []).map((member) => (
+                <div key={member._id || member} className="group-member-row">
+                  <div>
+                    <strong>{member.username || 'Member'}</strong>
+                    <small>{member._id === activeChat.admin?._id ? 'Admin' : member.online ? 'Online' : 'Member'}</small>
+                  </div>
+                  {isGroupAdmin && member._id !== user._id && member._id !== activeChat.admin?._id && (
+                    <button className="danger-button" type="button" onClick={() => handleRemoveMember(member._id)}>
+                      Remove Member
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddMembersModal && activeChat?.group && (
+        <div className="modal-scrim" onClick={() => setShowAddMembersModal(false)}>
+          <div className="modal-card group-picker-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Add Members</h3>
+                <p>Select connections to add to this group.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowAddMembersModal(false)}>
+                <FiX className="ui-icon" />
+              </button>
+            </div>
+            {groupActionError && <div className="auth-error">{groupActionError}</div>}
+            <div className="group-picker-modal-body">
+              {availableMembersToAdd.length > 0 ? (
+                <div className="contact-picker group-picker-list">
+                  {availableMembersToAdd.map((entry) => (
+                    <label key={entry._id} className="picker-option picker-option-card">
+                      <input
+                        type="checkbox"
+                        checked={memberIdsToAdd.includes(entry._id)}
+                        onChange={() =>
+                          setMemberIdsToAdd((prev) =>
+                            prev.includes(entry._id) ? prev.filter((id) => id !== entry._id) : [...prev, entry._id]
+                          )
+                        }
+                      />
+                      <div className="picker-option-copy">
+                        <strong>{entry.username}</strong>
+                        <span>{entry.email}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state slim">No more connections available to add.</div>
+              )}
+            </div>
+            <div className="group-picker-modal-actions">
+              <span className="status-label pending">{memberIdsToAdd.length} selected</span>
+              <button className="ghost-button" type="button" onClick={handleAddMembers}>
+                Add Members
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRenameGroupModal && activeChat?.group && (
+        <div className="modal-scrim" onClick={() => setShowRenameGroupModal(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Change Group Name</h3>
+                <p>Update the group details for all members.</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowRenameGroupModal(false)}>
+                <FiX className="ui-icon" />
+              </button>
+            </div>
+            {groupActionError && <div className="auth-error">{groupActionError}</div>}
+            <form className="modal-form" onSubmit={handleRenameGroup}>
+              <input
+                value={renameGroupDraft.name}
+                onChange={(event) => setRenameGroupDraft((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="Group name"
+                required
+              />
+              <input
+                value={renameGroupDraft.description}
+                onChange={(event) => setRenameGroupDraft((prev) => ({ ...prev, description: event.target.value }))}
+                placeholder="Description"
+              />
+              <button type="submit">Save Changes</button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="quick-fab-stack">
         <button className="people-fab" onClick={() => navigate('/people')}>
-          <span>⇄</span>
+          <span><FiUsers className="ui-icon" /></span>
           <strong>People</strong>
         </button>
         {appConfig.features?.status && (
           <button className="status-fab" onClick={() => navigate('/status')}>
-            <span>◉</span>
+            <span><FiPlus className="ui-icon" /></span>
             <strong>Status</strong>
           </button>
         )}

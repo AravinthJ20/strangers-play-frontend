@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FiX } from 'react-icons/fi';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from '../api';
 import AuthShell from './AuthShell';
@@ -65,7 +66,9 @@ export default function Login() {
                 <h3>{popupState.title}</h3>
                 <p>{popupState.message}</p>
               </div>
-              <button className="modal-close" onClick={() => setPopupState(null)}>x</button>
+              <button className="modal-close" onClick={() => setPopupState(null)}>
+                <FiX className="ui-icon" />
+              </button>
             </div>
           </div>
         </div>

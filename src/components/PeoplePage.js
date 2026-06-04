@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { FiArrowLeft } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { fetchDiscoverPeople, sendConnectionRequest } from '../api';
+import { fetchFeed, ignoreUser, sendInterest } from '../api';
 
 const getInitials = (value) =>
   value
@@ -10,50 +11,69 @@ const getInitials = (value) =>
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'SP';
 
-export default function PeoplePage({ user }) {
+const getFeedStatusLabel = (status) => {
+  if (status === 'accepted') return 'Accepted';
+  if (status === 'interested') return 'Interested';
+  if (status === 'rejected') return 'Rejected';
+  if (status === 'ignored') return 'Ignored';
+  return 'Open to connect';
+};
+
+export default function PeoplePage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const [people, setPeople] = useState([]);
-  const [ignoredIds, setIgnoredIds] = useState([]);
+  const [hiddenIds, setHiddenIds] = useState([]);
   const [dragState, setDragState] = useState({ id: '', startX: 0, offsetX: 0, dragging: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchDiscoverPeople(token)
+    fetchFeed(token)
       .then(setPeople)
       .catch((loadError) => setError(loadError.response?.data?.error || 'Unable to load people right now.'))
       .finally(() => setLoading(false));
   }, [token]);
 
   const visiblePeople = useMemo(
-    () => people.filter((person) => !ignoredIds.includes(person._id)),
-    [people, ignoredIds]
+    () =>
+      people.filter(
+        (person) =>
+          !hiddenIds.includes(person._id) &&
+          !['accepted', 'interested'].includes(person.connectionStatus)
+      ),
+    [people, hiddenIds]
   );
 
   const topPerson = visiblePeople[0];
   const nextPeople = visiblePeople.slice(1, 4);
 
-  const removePersonFromDeck = (personId, nextStatus) => {
+  const hidePerson = (personId, nextStatus) => {
     setPeople((prev) => prev.map((entry) => (entry._id === personId ? { ...entry, connectionStatus: nextStatus || entry.connectionStatus } : entry)));
-    setIgnoredIds((prev) => [...prev, personId]);
+    setHiddenIds((prev) => [...prev, personId]);
   };
 
-  const handleIgnore = (personId) => {
-    removePersonFromDeck(personId);
+  const handleIgnore = async (personId) => {
+    try {
+      await ignoreUser(personId, token);
+      hidePerson(personId, 'ignored');
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || 'Unable to ignore this profile right now.');
+    }
   };
 
-  const handleConnect = async (person) => {
-    if (!person || person.connectionStatus === 'connected' || person.connectionStatus === 'outgoing') {
-      removePersonFromDeck(person._id, person.connectionStatus);
+  const handleInterested = async (person) => {
+    if (!person) return;
+    if (person.connectionStatus === 'accepted' || person.connectionStatus === 'interested') {
+      hidePerson(person._id, person.connectionStatus);
       return;
     }
 
     try {
-      await sendConnectionRequest(person._id, token);
-      removePersonFromDeck(person._id, 'outgoing');
+      await sendInterest(person._id, token);
+      hidePerson(person._id, 'interested');
     } catch (requestError) {
-      setError(requestError.response?.data?.error || 'Unable to send connection request.');
+      setError(requestError.response?.data?.error || 'Unable to send interest right now.');
     }
   };
 
@@ -73,9 +93,9 @@ export default function PeoplePage({ user }) {
     }
 
     if (dragState.offsetX <= -110) {
-      handleIgnore(topPerson._id);
+      void handleIgnore(topPerson._id);
     } else if (dragState.offsetX >= 110) {
-      handleConnect(topPerson);
+      void handleInterested(topPerson);
     }
 
     setDragState({ id: '', startX: 0, offsetX: 0, dragging: false });
@@ -85,34 +105,29 @@ export default function PeoplePage({ user }) {
     <div className="people-page" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
       <header className="people-header">
         <div>
-          <strong className="eyebrow">Discover People</strong>
+          <strong className="eyebrow">People Feed</strong>
           <h1>Meet new people on Strangers Play</h1>
-          <p>Swipe left to ignore, swipe right to send a connection request, just like a polished social matching flow.</p>
+          <p>Browse the feed, ignore profiles you want to skip, and mark interested when you want to connect.</p>
         </div>
         <div className="people-header-actions">
-          <button className="ghost-button" onClick={() => navigate('/chat')}>Back to Chat</button>
+          <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
+            <FiArrowLeft className="ui-icon" />
+            Back to Chat
+          </button>
         </div>
       </header>
 
-      <section className="people-shell">
-        <aside className="people-sidebar-card">
-          <div className="people-profile">
-            <div className="people-avatar">{getInitials(user.username)}</div>
-            <div>
-              <strong>{user.username}</strong>
-              <span>{user.email}</span>
-            </div>
-          </div>
-          <div className="people-sidebar-copy">
-            <strong>How it works</strong>
-            <p>Browse public member cards, swipe left to skip, and swipe right to send a connection request instantly.</p>
-          </div>
-        </aside>
+      <div className="people-top-nav">
+        <button className="people-top-nav-link active" type="button" onClick={() => navigate('/people')}>People</button>
+        <button className="people-top-nav-link" type="button" onClick={() => navigate('/requests')}>Requests</button>
+        <button className="people-top-nav-link" type="button" onClick={() => navigate('/connections')}>Connections</button>
+      </div>
 
+      <section className="people-shell">
         <main className="people-deck-stage">
           {error && <div className="chat-error-banner">{error}</div>}
           {loading ? (
-            <div className="empty-state">Loading people...</div>
+            <div className="empty-state">Loading feed...</div>
           ) : topPerson ? (
             <div className="people-deck">
               {nextPeople.reverse().map((person, index) => (
@@ -132,7 +147,7 @@ export default function PeoplePage({ user }) {
               >
                 <div className="people-swipe-hints">
                   <span className="ignore">Ignore</span>
-                  <span className="connect">Connect</span>
+                  <span className="connect">Interested</span>
                 </div>
                 <div className="people-card-avatar hero">{getInitials(topPerson.username)}</div>
                 <div className="people-card-copy">
@@ -141,26 +156,20 @@ export default function PeoplePage({ user }) {
                   <small>{topPerson.online ? 'Online now' : 'Available to connect'}</small>
                 </div>
                 <div className="people-card-status-row">
-                  <span className={`status-label ${topPerson.connectionStatus === 'connected' ? 'connected' : 'pending'}`}>
-                    {topPerson.connectionStatus === 'connected'
-                      ? 'Connected'
-                      : topPerson.connectionStatus === 'outgoing'
-                        ? 'Request sent'
-                        : topPerson.connectionStatus === 'incoming'
-                          ? 'Requested you'
-                          : 'Open to connect'}
+                  <span className={`status-label ${topPerson.connectionStatus === 'accepted' ? 'connected' : 'pending'}`}>
+                    {getFeedStatusLabel(topPerson.connectionStatus)}
                   </span>
                 </div>
                 <div className="people-card-actions">
-                  <button className="ghost-button people-ignore-button" onClick={() => handleIgnore(topPerson._id)}>Ignore</button>
-                  <button className="people-connect-button" onClick={() => handleConnect(topPerson)}>
-                    {topPerson.connectionStatus === 'outgoing' ? 'Sent' : topPerson.connectionStatus === 'connected' ? 'Connected' : 'Connect'}
+                  <button className="ghost-button people-ignore-button" onClick={() => void handleIgnore(topPerson._id)}>Ignore</button>
+                  <button className="people-connect-button" onClick={() => void handleInterested(topPerson)}>
+                    Interested
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="empty-state">No more people to show right now.</div>
+            <div className="empty-state">No more profiles in the feed right now.</div>
           )}
         </main>
       </section>
