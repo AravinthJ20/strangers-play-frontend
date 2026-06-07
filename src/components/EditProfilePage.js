@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FiArrowLeft, FiEye } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { fetchProfile, updateProfile } from '../api';
+import { fetchProfile, updateProfile, uploadChatMedia } from '../api';
 
 const buildInitialState = (profile) => ({
   username: profile?.username || '',
@@ -16,6 +16,8 @@ export default function EditProfilePage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const [form, setForm] = useState(buildInitialState());
+  const [avatarMode, setAvatarMode] = useState('url');
+  const [avatarUploadName, setAvatarUploadName] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +25,10 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     fetchProfile(token)
-      .then((profile) => setForm(buildInitialState(profile)))
+      .then((profile) => {
+        setForm(buildInitialState(profile));
+        setAvatarMode('url');
+      })
       .catch((loadError) => setError(loadError.response?.data?.error || 'Unable to load your profile right now.'))
       .finally(() => setLoading(false));
   }, [token]);
@@ -32,6 +37,40 @@ export default function EditProfilePage() {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
     setError('');
     setStatus('');
+  };
+
+  const handleAvatarUpload = async (file) => {
+    if (!file) return;
+
+    setSaving(true);
+    setError('');
+    setStatus('');
+    setAvatarUploadName(file.name);
+
+    try {
+      const reader = new FileReader();
+      const dataUrl = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+        reader.readAsDataURL(file);
+      });
+
+      const uploaded = await uploadChatMedia(
+        {
+          fileName: file.name,
+          mimeType: file.type || 'image/png',
+          dataUrl
+        },
+        token
+      );
+
+      setForm((prev) => ({ ...prev, avatar: uploaded.publicUrl }));
+      setStatus('Profile image uploaded successfully.');
+    } catch (uploadError) {
+      setError(uploadError.response?.data?.error || uploadError.message || 'Unable to upload profile image.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -95,8 +134,27 @@ export default function EditProfilePage() {
               <input value={form.email} placeholder="Your email" readOnly />
             </label>
             <label className="profile-field">
-              <span>Avatar URL</span>
-              <input value={form.avatar} onChange={handleChange('avatar')} placeholder="https://example.com/avatar.jpg" />
+              <span>Profile image</span>
+              <div className="avatar-choice-card profile-avatar-choice-card">
+                <div className="avatar-choice-row">
+                  <label className="avatar-choice-option">
+                    <input type="radio" name="profile-avatar-mode" value="url" checked={avatarMode === 'url'} onChange={() => setAvatarMode('url')} />
+                    <span>Profile URL</span>
+                  </label>
+                  <label className="avatar-choice-option">
+                    <input type="radio" name="profile-avatar-mode" value="upload" checked={avatarMode === 'upload'} onChange={() => setAvatarMode('upload')} />
+                    <span>Upload Image</span>
+                  </label>
+                </div>
+                {avatarMode === 'url' ? (
+                  <input value={form.avatar} onChange={handleChange('avatar')} placeholder="https://example.com/avatar.jpg" />
+                ) : (
+                  <label className="avatar-upload-box">
+                    <input type="file" accept="image/*" hidden onChange={(e) => handleAvatarUpload(e.target.files?.[0] || null)} />
+                    <span>{avatarUploadName || 'Choose profile image'}</span>
+                  </label>
+                )}
+              </div>
             </label>
             <label className="profile-field">
               <span>Location</span>

@@ -168,6 +168,11 @@ const readFileAsDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
+const normalizeMimeType = (value, fallback = 'application/octet-stream') => {
+  const normalized = `${value || ''}`.split(';')[0].trim().toLowerCase();
+  return normalized || fallback;
+};
+
 const resolveMediaSource = (publicUrl) => {
   if (!publicUrl) return '';
   if (/^https?:\/\//i.test(publicUrl)) return publicUrl;
@@ -1445,10 +1450,11 @@ export default function ChatPage({ user, onLogoutComplete }) {
       const uploadedFiles = [];
       for (const file of files) {
         const dataUrl = await readFileAsDataUrl(file);
+        const normalizedMimeType = normalizeMimeType(file.type, 'application/octet-stream');
         const uploaded = await uploadChatMedia(
           {
             fileName: file.name,
-            mimeType: file.type || 'application/octet-stream',
+            mimeType: normalizedMimeType,
             dataUrl
           },
           token
@@ -1503,7 +1509,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
       recorder.onstop = async () => {
         const chunks = [...voiceRecordingChunksRef.current];
-        const recordedMimeType = recorder.mimeType || 'audio/webm';
+        const recordedMimeType = normalizeMimeType(recorder.mimeType, 'audio/webm');
         resetVoiceRecorder();
 
         if (chunks.length === 0) return;
@@ -1517,7 +1523,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
           const uploaded = await uploadChatMedia(
             {
               fileName: file.name,
-              mimeType: file.type || 'audio/webm',
+              mimeType: normalizeMimeType(file.type, 'audio/webm'),
               dataUrl
             },
             token

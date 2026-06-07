@@ -3,11 +3,22 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { requestRegistrationOtp, registerUser, validateInviteToken } from '../api';
 import AuthShell from './AuthShell';
 
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+
 export default function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [avatarMode, setAvatarMode] = useState('url');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarUpload, setAvatarUpload] = useState(null);
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -48,11 +59,23 @@ export default function Register() {
 
     setSubmitting(true);
     try {
+      const avatarPayload =
+        avatarMode === 'upload' && avatarUpload
+          ? {
+              fileName: avatarUpload.name,
+              mimeType: avatarUpload.type || 'image/png',
+              dataUrl: await readFileAsDataUrl(avatarUpload)
+            }
+          : null;
+
       const response = await requestRegistrationOtp({
         username: username.trim(),
         email: email.trim().toLowerCase(),
         password,
-        inviteToken
+        inviteToken,
+        avatar: avatarMode === 'url' ? avatarUrl.trim() : '',
+        avatarMode,
+        avatarUpload: avatarPayload
       });
       setOtpRequested(true);
       setStatusMessage(response.message || 'OTP sent to your email');
@@ -106,6 +129,32 @@ export default function Register() {
           {statusMessage && <div className="auth-info">{statusMessage}</div>}
           <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
           <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required readOnly={Boolean(inviteInfo)} />
+          <div className="avatar-choice-card">
+            <strong>Profile image</strong>
+            <div className="avatar-choice-row">
+              <label className="avatar-choice-option">
+                <input type="radio" name="register-avatar-mode" value="url" checked={avatarMode === 'url'} onChange={() => setAvatarMode('url')} />
+                <span>Profile URL</span>
+              </label>
+              <label className="avatar-choice-option">
+                <input type="radio" name="register-avatar-mode" value="upload" checked={avatarMode === 'upload'} onChange={() => setAvatarMode('upload')} />
+                <span>Upload Image</span>
+              </label>
+            </div>
+            {avatarMode === 'url' ? (
+              <input placeholder="https://example.com/avatar.jpg" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
+            ) : (
+              <label className="avatar-upload-box">
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => setAvatarUpload(e.target.files?.[0] || null)}
+                />
+                <span>{avatarUpload ? avatarUpload.name : 'Choose profile image'}</span>
+              </label>
+            )}
+          </div>
           <input placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
           <input placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" required />
           <button type="submit" disabled={submitting}>{submitting ? 'Sending OTP...' : 'Send OTP'}</button>
