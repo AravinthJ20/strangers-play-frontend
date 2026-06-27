@@ -36,7 +36,7 @@ export default function ViewProfilePage() {
         <div>
           <strong className="eyebrow">Your Profile</strong>
           <h1>View profile</h1>
-          <p>See how your identity appears across Strangers Play.</p>
+          <p>See how your identity appears across Green Lynk.</p>
         </div>
         <div className="profile-header-actions">
           <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
@@ -63,7 +63,7 @@ export default function ViewProfilePage() {
               <div className="profile-hero-copy">
                 <strong>{profile.username}</strong>
                 <span>{profile.email}</span>
-                <small>{profile.online ? 'Online now' : 'Available on Strangers Play'}</small>
+                <small>{profile.online ? 'Online now' : 'Available on Green Lynk'}</small>
                 <p>{profile.bio || 'Add a short bio in Edit Profile so people understand your vibe faster.'}</p>
               </div>
             </article>

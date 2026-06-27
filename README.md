@@ -1,4 +1,4 @@
-# Strangers Play Frontend
+# Green Lynk Frontend
 
 ## Setup
 

@@ -106,7 +106,7 @@ export default function PeoplePage() {
       <header className="people-header">
         <div>
           <strong className="eyebrow">People Feed</strong>
-          <h1>Meet new people on Strangers Play</h1>
+          <h1>Meet new people on Green Lynk</h1>
           <p>Browse the feed, ignore profiles you want to skip, and mark interested when you want to connect.</p>
         </div>
         <div className="people-header-actions">

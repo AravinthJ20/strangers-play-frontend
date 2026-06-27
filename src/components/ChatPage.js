@@ -2138,9 +2138,9 @@ export default function ChatPage({ user, onLogoutComplete }) {
     <div className="chat-shell">
       <header className="app-navbar">
         <div className="app-navbar-brand">
-          <img src="/assets/images/Strangers_Play_logo.png" alt="Strangers Play" className="app-navbar-logo" />
+                <img src="/assets/images/Strangers_Play_logo.png" alt="Green Lynk" className="app-navbar-logo" />
           <div>
-            <strong>Strangers Play</strong>
+                  <strong>Green Lynk</strong>
             <span>Connect, chat, share</span>
           </div>
         </div>

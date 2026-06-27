@@ -17,7 +17,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/strangers-play-frontend
+            cd ~/green-lynk-frontend
 
             git pull origin main
 

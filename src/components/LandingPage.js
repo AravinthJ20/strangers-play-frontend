@@ -7,9 +7,9 @@ export default function LandingPage() {
     <div className="landing-page">
       <header className="brand-nav">
         <Link to="/" className="brand-mark">
-          <img src={logoPath} alt="Strangers Play" className="brand-logo" />
+          <img src={logoPath} alt="Green Lynk" className="brand-logo" />
           <div>
-            <strong>Strangers Play</strong>
+            <strong>Green Lynk</strong>
             <span>Social chat, groups, invites, media</span>
           </div>
         </Link>
@@ -24,7 +24,7 @@ export default function LandingPage() {
           <div className="eyebrow">Built For Real Connections</div>
           <h1>Meet, chat, share, and invite people into a social space that feels alive.</h1>
           <p>
-            Strangers Play blends connection requests, rich chat, media sharing, stickers, groups, and invite-driven growth into one playful experience built for launch.
+            Green Lynk blends connection requests, rich chat, media sharing, stickers, groups, and invite-driven growth into one playful experience built for launch.
           </p>
           <div className="hero-actions">
             <Link to="/register" className="cta-button">Create Your Account</Link>

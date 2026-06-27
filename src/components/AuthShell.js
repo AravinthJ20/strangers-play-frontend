@@ -7,9 +7,9 @@ export default function AuthShell({ title, subtitle, footer, children }) {
     <div className="auth-shell">
       <section className="auth-brand-panel">
         <Link to="/" className="brand-mark auth-brand-mark">
-          <img src={logoPath} alt="Strangers Play" className="brand-logo" />
+          <img src={logoPath} alt="Green Lynk" className="brand-logo" />
           <div>
-            <strong>Strangers Play</strong>
+            <strong>Green Lynk</strong>
             <span>Chat that starts with consent and grows with community.</span>
           </div>
         </Link>

@@ -2,7 +2,7 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
 
   const payload = event.data.json();
-  const title = payload.title || 'Strangers Play';
+  const title = payload.title || 'Green Lynk';
   const options = {
     body: payload.body || 'You have a new update.',
     icon: '/assets/images/Strangers_Play_logo.png',
@@ -10,7 +10,7 @@ self.addEventListener('push', (event) => {
     data: {
       url: payload.url || '/chat'
     },
-    tag: payload.tag || 'strangers-play'
+    tag: payload.tag || 'green-lynk'
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
