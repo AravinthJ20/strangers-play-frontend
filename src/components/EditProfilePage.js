@@ -106,11 +106,11 @@ export default function EditProfilePage() {
           <p>Update the details people will see when they connect with you.</p>
         </div>
         <div className="profile-header-actions">
-          <button className="ghost-button button-with-icon" onClick={() => navigate('/view/profile')}>
+          <button className="profile-action-button profile-secondary-button button-with-icon" onClick={() => navigate('/view/profile')}>
             <FiEye className="ui-icon" />
             View Profile
           </button>
-          <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
+          <button className="profile-action-button profile-secondary-button button-with-icon" onClick={() => navigate('/chat')}>
             <FiArrowLeft className="ui-icon" />
             Back to Chat
           </button>
@@ -169,8 +169,8 @@ export default function EditProfilePage() {
               <textarea value={form.bio} onChange={handleChange('bio')} placeholder="Tell people a little about yourself" rows={5} />
             </label>
             <div className="profile-form-actions">
-              <button type="button" className="ghost-button" onClick={() => navigate('/view/profile')}>Cancel</button>
-              <button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</button>
+              <button type="button" className="profile-action-button profile-tertiary-button" onClick={() => navigate('/view/profile')}>Cancel</button>
+              <button type="submit" className="profile-action-button profile-primary-button" disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</button>
             </div>
           </form>
         )}

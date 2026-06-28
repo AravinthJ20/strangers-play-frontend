@@ -39,11 +39,11 @@ export default function ViewProfilePage() {
           <p>See how your identity appears across Green Lynk.</p>
         </div>
         <div className="profile-header-actions">
-          <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
+          <button className="profile-action-button profile-secondary-button button-with-icon" onClick={() => navigate('/chat')}>
             <FiArrowLeft className="ui-icon" />
             Back to Chat
           </button>
-          <button className="ghost-button button-with-icon" onClick={() => navigate('/edit/profile')}>
+          <button className="profile-action-button profile-primary-button button-with-icon" onClick={() => navigate('/edit/profile')}>
             <FiEdit2 className="ui-icon" />
             Edit Profile
           </button>

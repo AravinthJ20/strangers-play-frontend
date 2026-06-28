@@ -545,6 +545,72 @@ input {
   justify-content: flex-end;
 }
 
+.profile-action-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.profile-action-button:hover {
+  transform: translateY(-1px);
+}
+
+.profile-action-button:focus-visible {
+  outline: 3px solid rgba(42, 157, 143, 0.24);
+  outline-offset: 2px;
+}
+
+.profile-action-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+  box-shadow: none;
+}
+
+.profile-primary-button {
+  border: none;
+  background: linear-gradient(135deg, #17324f 0%, #2a9d8f 100%);
+  color: #fff;
+  box-shadow: 0 18px 34px rgba(23, 50, 79, 0.22);
+}
+
+.profile-primary-button:hover {
+  box-shadow: 0 22px 40px rgba(23, 50, 79, 0.28);
+}
+
+.profile-secondary-button {
+  border-color: rgba(23, 50, 79, 0.12);
+  background: rgba(255, 255, 255, 0.86);
+  color: #17324f;
+  box-shadow: 0 14px 28px rgba(18, 33, 58, 0.08);
+}
+
+.profile-secondary-button:hover {
+  border-color: rgba(23, 50, 79, 0.2);
+  background: #fff;
+  box-shadow: 0 18px 34px rgba(18, 33, 58, 0.12);
+}
+
+.profile-tertiary-button {
+  border-color: rgba(23, 50, 79, 0.12);
+  background: rgba(23, 50, 79, 0.04);
+  color: #17324f;
+}
+
+.profile-tertiary-button:hover {
+  border-color: rgba(23, 50, 79, 0.2);
+  background: rgba(23, 50, 79, 0.08);
+}
+
 .profile-shell {
   display: grid;
   gap: 22px;
@@ -2833,9 +2899,8 @@ input {
   }
 
   .sidebar-profile-actions .ghost-button,
-  .profile-header-actions .ghost-button,
-  .profile-form-actions .ghost-button,
-  .profile-form-actions button[type='submit'] {
+  .profile-header-actions .profile-action-button,
+  .profile-form-actions .profile-action-button {
     flex: 1;
   }
 
