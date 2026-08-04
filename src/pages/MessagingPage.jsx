@@ -4,6 +4,8 @@ import {
   FiEye,
   FiFileText,
   FiImage,
+  FiSearch,
+  FiShare2,
   FiLogOut,
   FiMapPin,
   FiMic,
@@ -26,6 +28,8 @@ import { MdDone, MdDoneAll, MdSchedule } from 'react-icons/md';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import { appConfig } from '../config';
+import { useAgentCallBridge } from '../hooks/useAgentCallBridge';
+import AgentFab from '../components/common/AgentFab';
 import {
   acceptConnectionRequest,
   addGroupMembers,
@@ -313,6 +317,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [historyPageInfo, setHistoryPageInfo] = useState({ hasMore: false, nextCursor: null });
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [message, setMessage] = useState('');
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
+  const [messageSearchTerm, setMessageSearchTerm] = useState('');
   const [mentionState, setMentionState] = useState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
   const [draftSticker, setDraftSticker] = useState('');
   const [draftAttachments, setDraftAttachments] = useState([]);
@@ -343,6 +349,9 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [editingMessageId, setEditingMessageId] = useState('');
   const [editingMessageText, setEditingMessageText] = useState('');
   const [openMessageMenuId, setOpenMessageMenuId] = useState('');
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [forwardTargets, setForwardTargets] = useState([]);
+  const [forwardMessageToSend, setForwardMessageToSend] = useState(null);
   const [callState, setCallState] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [groupCallState, setGroupCallState] = useState(null);
@@ -353,6 +362,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [isCameraEnabled, setIsCameraEnabled] = useState(true);
   const activeChatRef = useRef(activeChat);
   const callStateRef = useRef(callState);
+  const startCallRef = useRef(null);
+  const loadConversationRef = useRef(null);
   const incomingCallRef = useRef(incomingCall);
   const groupCallStateRef = useRef(groupCallState);
   const connectionsRef = useRef(connections);
@@ -667,6 +678,13 @@ export default function ChatPage({ user, onLogoutComplete }) {
     setOpenMessageMenuId('');
   };
 
+  const openForwardModal = (messageToForward) => {
+    setForwardMessageToSend(messageToForward);
+    setForwardTargets([]);
+    setShowForwardModal(true);
+    setOpenMessageMenuId('');
+  };
+
   const handleShareLocation = () => {
     if (!socket || !activeChat) return;
     if (!navigator.geolocation) {
@@ -710,6 +728,19 @@ export default function ChatPage({ user, onLogoutComplete }) {
     );
   };
 
+  const displayedMessages = useMemo(() => {
+    const term = (messageSearchTerm || '').trim().toLowerCase();
+    if (!term) return messages;
+    return messages.filter((m) => {
+      if (m.isDeleted) return false;
+      if (m.content && m.content.toLowerCase().includes(term)) return true;
+      if (m.sticker && String(m.sticker).toLowerCase().includes(term)) return true;
+      if (m.attachments && m.attachments.some((a) => (a.originalName || '').toLowerCase().includes(term))) return true;
+      if (m.sender && (m.sender.username || '').toLowerCase().includes(term)) return true;
+      return false;
+    });
+  }, [messages, messageSearchTerm]);
+
   const upsertChatItem = (messagePayload, isGroup) => {
     if (isGroup) {
       setChats((prev) => prev.map((chat) => (chat._id === messagePayload.group ? { ...chat, lastMessage: messagePayload } : chat)));
@@ -729,6 +760,22 @@ export default function ChatPage({ user, onLogoutComplete }) {
       if (!fallback) return prev;
       return [{ ...fallback, lastMessage: messagePayload }, ...prev];
     });
+  };
+
+  const getGroupMessageViewerNames = (msg) => {
+    if (!activeChat?.group || msg.sender._id !== user._id || !Array.isArray(msg.readBy) || msg.readBy.length === 0) {
+      return [];
+    }
+
+    const readByIds = msg.readBy.map((entry) => {
+      if (typeof entry === 'string') return entry;
+      if (entry?._id) return entry._id.toString();
+      return entry?.toString?.() || '';
+    });
+
+    return (activeChat.members || [])
+      .filter((member) => member?._id && readByIds.includes(member._id.toString()) && member._id.toString() !== user._id)
+      .map((member) => member.username);
   };
 
   const markMessagesRead = (loadedMessages, chat) => {
@@ -789,6 +836,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
       setChatError(error.response?.data?.error || 'Unable to load chat.');
     }
   };
+
+  loadConversationRef.current = loadConversation;
 
   const loadOlderMessages = async () => {
     if (!activeChat || !historyPageInfo.hasMore || !historyPageInfo.nextCursor || loadingOlderMessages) return;
@@ -1903,6 +1952,8 @@ export default function ChatPage({ user, onLogoutComplete }) {
     }
   };
 
+  startCallRef.current = startCall;
+
   const acceptCall = async () => {
     if (!incomingCall || !socket || !incomingCall.offer) return;
 
@@ -2073,6 +2124,15 @@ export default function ChatPage({ user, onLogoutComplete }) {
       .slice(0, 6);
   }, [activeChat, mentionState, user._id]);
 
+  useAgentCallBridge({
+    connections,
+    chats,
+    activeChat,
+    socket,
+    loadConversationRef,
+    startCallRef
+  });
+
   const insertMention = (member) => {
     if (!member || mentionState.startIndex < 0) return;
 
@@ -2186,16 +2246,19 @@ export default function ChatPage({ user, onLogoutComplete }) {
       </header>
       <aside className="sidebar">
         <div className="sidebar-header sidebar-profile-card">
-          <div className="sidebar-user-row">
-            <div className="sidebar-avatar">{getInitials(user.username)}</div>
-            <div className="sidebar-user">
-              <strong>{user.username}</strong>
-              <span>{user.email}</span>
+          <div className="sidebar-profile-details">
+            <div className="sidebar-user-row">
+              <div className="sidebar-avatar">
+                {user.avatar ? <img src={user.avatar} alt={user.username} className="sidebar-avatar-image" /> : getInitials(user.username)}
+              </div>
+              <div className="sidebar-user">
+                <strong>{user.username}</strong>
+              </div>
             </div>
-          </div>
-          <div className="sidebar-profile-meta">
-            <span>Community ready</span>
-            <span>{connections.length} connections</span>
+            <div className="sidebar-profile-meta">
+             
+              <span>{connections.length} connections</span>
+            </div>
           </div>
           <div className="sidebar-profile-actions">
             <button className="ghost-button icon-button profile-icon-button" type="button" onClick={() => navigate('/view/profile')} title="View Profile" aria-label="View Profile">
@@ -2328,10 +2391,29 @@ export default function ChatPage({ user, onLogoutComplete }) {
           <>
             <div className="chat-header">
               <div>
-                <h2>{activeChat.name || activeChat.username}</h2>
-                <p>{activeChat.group ? `${activeChat.members?.length || 0} members` : activeChat.online ? 'Online' : formatLastSeen(activeChat.lastSeen)}</p>
+                {!showMessageSearch ? (
+                  <>
+                    <h2>{activeChat.name || activeChat.username}</h2>
+                    <p>{activeChat.group ? `${activeChat.members?.length || 0} members` : activeChat.online ? 'Online' : formatLastSeen(activeChat.lastSeen)}</p>
+                  </>
+                ) : (
+                  <div className="chat-header-search">
+                    <input
+                      value={messageSearchTerm}
+                      onChange={(e) => setMessageSearchTerm(e.target.value)}
+                      placeholder="Search messages in this chat"
+                      autoFocus
+                    />
+                    <button className="ghost-button icon-button" onClick={() => { setMessageSearchTerm(''); setShowMessageSearch(false); }} title="Close search">
+                      <FiX className="ui-icon" />
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="chat-actions">
+                <button className="ghost-button icon-button" onClick={() => setShowMessageSearch((s) => !s)} title="Search messages" aria-label="Search messages">
+                  <FiSearch className="ui-icon" />
+                </button>
                 {!activeChat.group && (
                   <>
                     <button className="ghost-button icon-button" onClick={() => startCall('voice')} title="Voice call" aria-label="Voice call">
@@ -2429,6 +2511,111 @@ export default function ChatPage({ user, onLogoutComplete }) {
                     )}
                   </div>
                 )}
+                {showForwardModal && (
+                  <div className="modal-scrim" onClick={() => setShowForwardModal(false)}>
+                    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                      <div className="modal-header">
+                        <div>
+                          <h3>Forward message</h3>
+                          <p>Select connections or groups to forward this message to.</p>
+                        </div>
+                        <button className="modal-close" onClick={() => setShowForwardModal(false)}>
+                          <FiX className="ui-icon" />
+                        </button>
+                      </div>
+
+                      <div className="modal-form" style={{ maxHeight: '40vh', overflowY: 'auto' }}>
+                        <div style={{ marginBottom: 12 }}>
+                          <strong>Connections</strong>
+                        </div>
+                        {connections.length > 0 ? (
+                          connections.map((entry) => {
+                            const key = `u-${entry._id}`;
+                            return (
+                              <label key={key} className="picker-option picker-option-card">
+                                <input
+                                  type="checkbox"
+                                  checked={forwardTargets.includes(key)}
+                                  onChange={() =>
+                                    setForwardTargets((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+                                  }
+                                />
+                                <div className="picker-option-copy">
+                                  <strong>{entry.username}</strong>
+                                  <span>{entry.email}</span>
+                                </div>
+                              </label>
+                            );
+                          })
+                        ) : (
+                          <div className="empty-state slim">No connections available.</div>
+                        )}
+
+                        <div style={{ marginTop: 14, marginBottom: 8 }}>
+                          <strong>Groups</strong>
+                        </div>
+                        {groups.length > 0 ? (
+                          groups.map((g) => {
+                            const key = `g-${g._id}`;
+                            return (
+                              <label key={key} className="picker-option picker-option-card">
+                                <input
+                                  type="checkbox"
+                                  checked={forwardTargets.includes(key)}
+                                  onChange={() =>
+                                    setForwardTargets((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+                                  }
+                                />
+                                <div className="picker-option-copy">
+                                  <strong>{g.name}</strong>
+                                  <span>{g.members?.length || 0} members</span>
+                                </div>
+                              </label>
+                            );
+                          })
+                        ) : (
+                          <div className="empty-state slim">No groups available.</div>
+                        )}
+
+                        <div style={{ marginTop: 18, display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span className="status-label pending">{forwardTargets.length} selected</span>
+                          <button
+                            className="ghost-button"
+                            type="button"
+                            onClick={async () => {
+                              if (!forwardMessageToSend || !socket || forwardTargets.length === 0) return;
+                              const content = forwardMessageToSend.content || '';
+                              const sticker = forwardMessageToSend.sticker || '';
+                              const attachmentIds = (forwardMessageToSend.attachments || []).map((a) => a._id);
+
+                              for (const key of forwardTargets) {
+                                try {
+                                  const tempId = `temp-forward-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+                                  const payload = { tempId, content, sticker, attachmentIds };
+                                  if (key.startsWith('g-')) {
+                                    const groupId = key.slice(2);
+                                    socket.emit('group-message', { ...payload, groupId });
+                                  } else if (key.startsWith('u-')) {
+                                    const recipientId = key.slice(2);
+                                    socket.emit('personal-message', { ...payload, recipientId });
+                                  }
+                                } catch (err) {
+                                  console.error('Forward failed for', key, err);
+                                }
+                              }
+
+                              setShowForwardModal(false);
+                              setForwardTargets([]);
+                              setForwardMessageToSend(null);
+                            }}
+                          >
+                            Forward
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {callState && <button className="danger-button" onClick={endCall}>End Call</button>}
               </div>
             </div>
@@ -2440,7 +2627,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
             <div className="messages-area" ref={messagesAreaRef} onScroll={handleMessagesScroll}>
               {chatError && <div className="chat-error-banner">{chatError}</div>}
               {loadingOlderMessages && <div className="history-loading-indicator">Loading older messages...</div>}
-              {messages.map((msg) => {
+              {displayedMessages.map((msg) => {
                 const isOwnMessage = msg.sender._id === user._id;
                 const callLabel = msg.callDetails
                   ? `${msg.callDetails.mode === 'video' ? 'Video' : 'Voice'} call ${msg.callDetails.status}`
@@ -2454,10 +2641,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                   <div
                     key={msg._id || msg.timestamp}
                     className={`${isOwnMessage ? 'message sent' : 'message received'} ${canOpenMessageMenu ? 'message-menu-enabled' : ''}`}
-                    onClick={() => {
-                      if (!canOpenMessageMenu || editingMessageId === msg._id) return;
-                      setOpenMessageMenuId((prev) => (prev === msg._id ? '' : msg._id));
-                    }}
+                
                   >
                     {activeChat.group && !isOwnMessage && <div className="message-author">{msg.sender.username}</div>}
                     {msg.type === 'call' ? (
@@ -2501,6 +2685,23 @@ export default function ChatPage({ user, onLogoutComplete }) {
                         )}
                       </>
                     )}
+                    {canOpenMessageMenu && editingMessageId !== msg._id && (
+                      <div className="message-menu-trigger" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="ghost-button icon-button menu-trigger-btn"
+                          onClick={() => setOpenMessageMenuId((prev) => (prev === msg._id ? '' : msg._id))}
+                          aria-label="Open message actions"
+                          title="Message actions"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="5" cy="12" r="1.8" fill="currentColor" />
+                            <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+                            <circle cx="19" cy="12" r="1.8" fill="currentColor" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                     {(likeCount > 0 || dislikeCount > 0) && !msg.isDeleted && msg.type !== 'call' && (
                       <div className="message-reaction-summary">
                         {likeCount > 0 && <span className={currentReaction === 'like' ? 'active' : ''}><FiThumbsUp className="ui-icon" /> {likeCount}</span>}
@@ -2509,6 +2710,12 @@ export default function ChatPage({ user, onLogoutComplete }) {
                     )}
                     {openMessageMenuId === msg._id && canOpenMessageMenu && (
                       <div className="message-inline-menu" onClick={(event) => event.stopPropagation()}>
+                        {activeChat?.group && getGroupMessageViewerNames(msg).length > 0 && (
+                          <div className="message-menu-seen">
+                            <small>Seen by</small>
+                            <strong>{getGroupMessageViewerNames(msg).slice(0,5).join(', ')}{getGroupMessageViewerNames(msg).length > 5 ? ` +${getGroupMessageViewerNames(msg).length - 5}` : ''}</strong>
+                          </div>
+                        )}
                         {canEditMessage && (
                           <>
                             <button className="message-menu-item" onClick={() => beginEditMessage(msg)}>
@@ -2521,6 +2728,15 @@ export default function ChatPage({ user, onLogoutComplete }) {
                             </button>
                           </>
                         )}
+                        <button
+                          className="message-menu-item"
+                          onClick={() => {
+                            openForwardModal(msg);
+                          }}
+                        >
+                          <span className="message-menu-item-icon"><FiShare2 className="ui-icon" /></span>
+                          <span>Forward</span>
+                        </button>
                         {!msg.isDeleted && (
                           <>
                             <button className="message-menu-item" onClick={() => handleReactionToggle(msg._id, 'like')}>
@@ -2560,6 +2776,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
                         </span>
                       )}
                     </div>
+                    {/* 'Seen by' is now shown in the message inline menu (three-dot popup) only */}
                   </div>
                 );
               })}
@@ -2591,18 +2808,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
             <div className="composer-toolbar">
               <div className="picker-anchor">
-                <button
-                  className="ghost-button composer-launcher"
-                  onClick={() => {
-                    setComposerPopupView('menu');
-                    setShowComposerPopup((prev) => !prev);
-                  }}
-                  title="Open attachments, emoji, and stickers"
-                  aria-label="Open attachments, emoji, and stickers"
-                >
-                  <FiPaperclip className="ui-icon" />
-                  <small>Attach</small>
-                </button>
+             
                 {showComposerPopup && (
                   <div className="picker-popup">
                     <div className="picker-popup-header">
@@ -2746,52 +2952,83 @@ export default function ChatPage({ user, onLogoutComplete }) {
                   ))}
                 </div>
               )}
-              <input
-                ref={messageInputRef}
-                value={message}
-                onChange={(e) => sendTypingEvent(e.target.value)}
-                onClick={(e) => updateMentionStateForValue(e.target.value, e.target.selectionStart)}
-                onKeyDown={(e) => {
-                  if (mentionState.open && mentionSuggestions.length > 0) {
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      setMentionState((prev) => ({
-                        ...prev,
-                        selectedIndex: Math.min(prev.selectedIndex + 1, mentionSuggestions.length - 1)
-                      }));
-                      return;
+
+              <div className="input-with-icons">
+                <button
+                  type="button"
+                  className="icon-left ghost-button"
+                  onClick={() => setShowComposerPopup((prev) => !prev)}
+                  title="Open emoji and attachments"
+                  aria-label="Open emoji and attachments"
+                >
+                  <FiSmile className="ui-icon" />
+                </button>
+
+                <input
+                  ref={messageInputRef}
+                  value={message}
+                  onChange={(e) => sendTypingEvent(e.target.value)}
+                  onClick={(e) => updateMentionStateForValue(e.target.value, e.target.selectionStart)}
+                  onKeyDown={(e) => {
+                    if (mentionState.open && mentionSuggestions.length > 0) {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setMentionState((prev) => ({
+                          ...prev,
+                          selectedIndex: Math.min(prev.selectedIndex + 1, mentionSuggestions.length - 1)
+                        }));
+                        return;
+                      }
+
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setMentionState((prev) => ({
+                          ...prev,
+                          selectedIndex: Math.max(prev.selectedIndex - 1, 0)
+                        }));
+                        return;
+                      }
+
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        insertMention(mentionSuggestions[Math.min(mentionState.selectedIndex, mentionSuggestions.length - 1)]);
+                        return;
+                      }
+
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setMentionState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
+                        return;
+                      }
                     }
 
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      setMentionState((prev) => ({
-                        ...prev,
-                        selectedIndex: Math.max(prev.selectedIndex - 1, 0)
-                      }));
-                      return;
-                    }
+                    if (e.key === 'Enter') handleSendMessage();
+                  }}
+                  placeholder="Type a message"
+                />
 
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      insertMention(mentionSuggestions[Math.min(mentionState.selectedIndex, mentionSuggestions.length - 1)]);
-                      return;
-                    }
-
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      setMentionState({ open: false, query: '', startIndex: -1, endIndex: -1, selectedIndex: 0 });
-                      return;
-                    }
-                  }
-
-                  if (e.key === 'Enter') handleSendMessage();
-                }}
-                placeholder="Type a message"
-              />
-              <button onClick={handleSendMessage} disabled={uploading || voiceRecordingState.active}>
-                <FiSend className="ui-icon" />
-                Send
-              </button>
+                <div className="input-icons-right">
+                  <button
+                    type="button"
+                    className="ghost-button icon-button"
+                    onClick={() => photoInputRef.current?.click()}
+                    title="Attach photo"
+                    aria-label="Attach photo"
+                  >
+                    <FiImage className="ui-icon" />
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button icon-button "
+                    onClick={handleSendMessage}
+                    disabled={uploading || voiceRecordingState.active}
+                    title="Send message"
+                    aria-label="Send message"
+                  >
+                    <FiSend className="ui-icon" />
+                  </button>
+                </div>
+              </div>
             </div>
           </>
         ) : (
@@ -3129,6 +3366,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
             <strong>Status</strong>
           </button>
         )}
+        <AgentFab />
       </div>
     </div>
   );

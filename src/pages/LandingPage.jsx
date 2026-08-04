@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-
 const logoPath = '/assets/images/Strangers_Play_logo.png';
 
 export default function LandingPage() {
@@ -22,10 +21,11 @@ export default function LandingPage() {
       <main className="hero-grid">
         <section className="hero-copy">
           <div className="eyebrow">Built For Real Connections</div>
-          <h1>Meet, chat, share, and invite people into a social space that feels alive.</h1>
+          <h3>Meet, chat, share, and invite people into a social space that feels alive.</h3>
           <p>
             Green Lynk blends connection requests, rich chat, media sharing, stickers, groups, and invite-driven growth into one playful experience built for launch.
           </p>
+          <br></br>
           <div className="hero-actions">
             <Link to="/register" className="cta-button">Create Your Account</Link>
             <Link to="/login" className="cta-link">I already have an account</Link>

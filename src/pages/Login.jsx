@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { FiX } from 'react-icons/fi';
 import { useNavigate, Link } from 'react-router-dom';
-import { loginUser } from '../api';
-import AuthShell from './AuthShell';
+import { loginUser } from '../services/api';
+import AuthShell from '../components/common/AuthShell';
 
 export default function Login() {
   const [email, setEmail] = useState('');

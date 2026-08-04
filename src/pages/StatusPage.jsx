@@ -1,4 +1,4 @@
-import StatusPanelDefault, { StatusPanel as StatusPanelNamed } from './StatusPanel';
+import StatusPanelDefault, { StatusPanel as StatusPanelNamed } from '../components/feed/StatusPanel';
 
 export default function StatusPage({ user }) {
   const token = localStorage.getItem('token');

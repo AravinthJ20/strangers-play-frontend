@@ -1,0 +1,222 @@
+.agent-page {
+  min-height: 100vh;
+  padding: 28px;
+  display: grid;
+  gap: 20px;
+}
+
+.agent-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.agent-header h1 {
+  margin: 8px 0 6px;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+.agent-header p {
+  margin: 0;
+  color: #5d6a7c;
+  max-width: 56ch;
+}
+
+.agent-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.agent-chat-panel {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(18, 33, 58, 0.08);
+  border-radius: 28px;
+  box-shadow: 0 24px 48px rgba(18, 33, 58, 0.08);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  min-height: min(72vh, 760px);
+}
+
+.agent-chat-feed {
+  padding: 24px;
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.agent-message {
+  display: flex;
+  gap: 12px;
+  max-width: min(100%, 760px);
+}
+
+.agent-message.user {
+  margin-left: auto;
+  flex-direction: row-reverse;
+}
+
+.agent-message-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #17324f 0%, #2a9d8f 100%);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.agent-message.user .agent-message-badge {
+  background: linear-gradient(135deg, #bc4749 0%, #f77f00 100%);
+}
+
+.agent-message-body {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(23, 50, 79, 0.06);
+  border: 1px solid rgba(18, 33, 58, 0.06);
+}
+
+.agent-message.user .agent-message-body {
+  background: linear-gradient(135deg, rgba(23, 50, 79, 0.92) 0%, rgba(42, 157, 143, 0.92) 100%);
+  color: #fff;
+  border-color: transparent;
+}
+
+.agent-message.error .agent-message-body {
+  background: rgba(188, 71, 73, 0.1);
+  border-color: rgba(188, 71, 73, 0.18);
+}
+
+.agent-message-text {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.agent-typing::after {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1em;
+  margin-left: 4px;
+  background: currentColor;
+  animation: agent-blink 1s step-end infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes agent-blink {
+  50% { opacity: 0; }
+}
+
+.agent-action-button {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #17324f 0%, #2a9d8f 100%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.agent-quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 20px 16px;
+}
+
+.agent-prompt-chip {
+  border: 1px solid rgba(18, 33, 58, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: #17324f;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.agent-prompt-chip:hover:not(:disabled) {
+  border-color: rgba(42, 157, 143, 0.45);
+  background: rgba(42, 157, 143, 0.08);
+}
+
+.agent-prompt-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.agent-composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 16px 20px 20px;
+  border-top: 1px solid rgba(18, 33, 58, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.agent-composer input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(18, 33, 58, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.agent-composer button {
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #0f766e 0%, #2a9d8f 100%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.agent-composer button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.agent-fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #386641 0%, #6a994e 100%);
+  color: white;
+  box-shadow: 0 18px 34px rgba(56, 102, 65, 0.22);
+  cursor: pointer;
+}
+
+.agent-fab span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+@media (max-width: 768px) {
+  .agent-page {
+    padding: 20px 16px 36px;
+  }
+
+  .agent-header {
+    flex-direction: column;
+  }
+
+  .agent-chat-panel {
+    min-height: 70vh;
+  }
+}

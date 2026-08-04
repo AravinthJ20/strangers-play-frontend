@@ -68,3 +68,5 @@ export const updateGroup = (groupId, payload, token) => client.patch(`/api/group
 export const addGroupMembers = (groupId, memberIds, token) => client.post(`/api/groups/${groupId}/add-members`, { memberIds }, withAuth(token)).then((res) => res.data);
 export const removeGroupMember = (groupId, memberId, token) => client.post(`/api/groups/${groupId}/remove-member`, { memberId }, withAuth(token)).then((res) => res.data);
 export const leaveGroup = (groupId, token) => client.post(`/api/groups/${groupId}/leave`, {}, withAuth(token)).then((res) => res.data);
+export const fetchAgentCapabilities = (token) => client.get('/api/agent/capabilities', withAuth(token)).then((res) => res.data);
+export const sendAgentMessage = (message, token) => client.post('/api/agent/chat', { message }, withAuth(token)).then((res) => res.data);

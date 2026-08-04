@@ -19,11 +19,22 @@ const getFeedStatusLabel = (status) => {
   return 'Open to connect';
 };
 
+const renderAvatar = (person, className = '') => (
+  <div className={`people-card-avatar${className ? ` ${className}` : ''}`}>
+    {person.avatar ? (
+      <img src={person.avatar} alt={person.username} className="people-card-avatar-image" />
+    ) : (
+      getInitials(person.username)
+    )}
+  </div>
+);
+
 export default function PeoplePage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const [people, setPeople] = useState([]);
   const [hiddenIds, setHiddenIds] = useState([]);
+  const [peopleSearch, setPeopleSearch] = useState('');
   const [dragState, setDragState] = useState({ id: '', startX: 0, offsetX: 0, dragging: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,13 +47,19 @@ export default function PeoplePage() {
   }, [token]);
 
   const visiblePeople = useMemo(
-    () =>
-      people.filter(
-        (person) =>
-          !hiddenIds.includes(person._id) &&
-          !['accepted', 'interested'].includes(person.connectionStatus)
-      ),
-    [people, hiddenIds]
+    () => {
+      const term = (peopleSearch || '').trim().toLowerCase();
+      return people.filter((person) => {
+        if (hiddenIds.includes(person._id)) return false;
+        if (['accepted', 'interested'].includes(person.connectionStatus)) return false;
+        if (!term) return true;
+        return (
+          (person.username || '').toLowerCase().includes(term) ||
+          (person.email || '').toLowerCase().includes(term)
+        );
+      });
+    },
+    [people, hiddenIds, peopleSearch]
   );
 
   const topPerson = visiblePeople[0];
@@ -109,12 +126,18 @@ export default function PeoplePage() {
           <h1>Meet new people on Green Lynk</h1>
           <p>Browse the feed, ignore profiles you want to skip, and mark interested when you want to connect.</p>
         </div>
-        <div className="people-header-actions">
-          <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
-            <FiArrowLeft className="ui-icon" />
-            Back to Chat
-          </button>
-        </div>
+          <div className="people-header-actions">
+            <input
+              className="people-search-input"
+              value={peopleSearch}
+              onChange={(e) => setPeopleSearch(e.target.value)}
+              placeholder="Search people by name or email..."
+            />
+            <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
+              <FiArrowLeft className="ui-icon" />
+              Back to Chat
+            </button>
+          </div>
       </header>
 
       <div className="people-top-nav">
@@ -132,7 +155,7 @@ export default function PeoplePage() {
             <div className="people-deck">
               {nextPeople.reverse().map((person, index) => (
                 <div key={person._id} className={`people-card people-card-stack stack-${index + 1}`}>
-                  <div className="people-card-avatar">{getInitials(person.username)}</div>
+                  {renderAvatar(person)}
                   <div className="people-card-copy">
                     <strong>{person.username}</strong>
                     <span>{person.email}</span>
@@ -149,7 +172,7 @@ export default function PeoplePage() {
                   <span className="ignore">Ignore</span>
                   <span className="connect">Interested</span>
                 </div>
-                <div className="people-card-avatar hero">{getInitials(topPerson.username)}</div>
+                {renderAvatar(topPerson, 'hero')}
                 <div className="people-card-copy">
                   <strong>{topPerson.username}</strong>
                   <span>{topPerson.email}</span>

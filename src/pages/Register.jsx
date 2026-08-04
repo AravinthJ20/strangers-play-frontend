@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { requestRegistrationOtp, registerUser, validateInviteToken } from '../api';
-import AuthShell from './AuthShell';
+import { requestRegistrationOtp, registerUser, validateInviteToken } from '../services/api';
+import AuthShell from '../components/common/AuthShell';
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {

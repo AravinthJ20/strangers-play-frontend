@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FiArrowLeft, FiEye } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { fetchProfile, updateProfile, uploadChatMedia } from '../api';
+import { fetchProfile, updateProfile, uploadChatMedia } from '../services/api';
 
 const buildInitialState = (profile) => ({
   username: profile?.username || '',
@@ -22,6 +22,7 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  const [previewError, setPreviewError] = useState(false);
 
   useEffect(() => {
     fetchProfile(token)
@@ -32,6 +33,10 @@ export default function EditProfilePage() {
       .catch((loadError) => setError(loadError.response?.data?.error || 'Unable to load your profile right now.'))
       .finally(() => setLoading(false));
   }, [token]);
+
+  useEffect(() => {
+    setPreviewError(false);
+  }, [form.avatar]);
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -121,7 +126,8 @@ export default function EditProfilePage() {
         {loading ? (
           <div className="empty-state">Loading profile editor...</div>
         ) : (
-          <form className="profile-form-card" onSubmit={handleSubmit}>
+          <div className="profile-shell-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
+            <form className="profile-form-card" onSubmit={handleSubmit}>
             <h3>Profile Details</h3>
             {error && <div className="auth-error">{error}</div>}
             {status && <div className="auth-info">{status}</div>}
@@ -172,7 +178,26 @@ export default function EditProfilePage() {
               <button type="button" className="profile-action-button profile-tertiary-button" onClick={() => navigate('/view/profile')}>Cancel</button>
               <button type="submit" className="profile-action-button profile-primary-button" disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</button>
             </div>
-          </form>
+            </form>
+
+            <aside className="profile-preview" aria-label="Profile preview">
+              {form.avatar ? (
+                !previewError ? (
+                  <img
+                    src={form.avatar}
+                    alt="Profile preview"
+                    onError={() => setPreviewError(true)}
+                    onLoad={() => setPreviewError(false)}
+                    style={{ maxWidth: '100%', borderRadius: 12 }}
+                  />
+                ) : (
+                  <div className="empty-state">Unable to load image preview.</div>
+                )
+              ) : (
+                <div className="empty-state">No profile image selected.</div>
+              )}
+            </aside>
+          </div>
         )}
       </section>
     </div>

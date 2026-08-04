@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import Login from './components/Login';
-import Register from './components/Register';
-import ForgotPassword from './components/ForgotPassword';
-import ChatPage from './components/ChatPage';
-import PeoplePage from './components/PeoplePage';
-import RequestsPage from './components/RequestsPage';
-import ConnectionsPage from './components/ConnectionsPage';
-import ViewProfilePage from './components/ViewProfilePage';
-import EditProfilePage from './components/EditProfilePage';
-import StatusPage from './components/StatusPage';
-import LandingPage from './components/LandingPage';
-import { getCurrentUser } from './api';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ChatPage from './pages/MessagingPage';
+import PeoplePage from './pages/PeoplePage';
+import RequestsPage from './pages/RequestsPage';
+import ConnectionsPage from './pages/ConnectionsPage';
+import ViewProfilePage from './pages/ViewProfilePage';
+import EditProfilePage from './pages/EditProfilePage';
+import StatusPage from './pages/StatusPage';
+import AgentPage from './pages/AgentAssistantPage';
+import LandingPage from './pages/LandingPage';
+import { appConfig } from './config';
+import { getCurrentUser } from './services/api';
 
 const getStoredToken = () => {
   const token = localStorage.getItem('token');
@@ -74,6 +76,9 @@ function App() {
       <Route path="/requests" element={user ? <RequestsPage /> : <Navigate to="/login" />} />
       <Route path="/connections" element={user ? <ConnectionsPage /> : <Navigate to="/login" />} />
       <Route path="/status" element={user ? <StatusPage user={user} /> : <Navigate to="/login" />} />
+      {appConfig.features?.agent && (
+        <Route path="/agent" element={user ? <AgentPage /> : <Navigate to="/login" />} />
+      )}
       <Route path="*" element={<Navigate to={user ? '/chat' : '/'} />} />
     </Routes>
   );

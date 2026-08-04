@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FiArrowLeft, FiEdit2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { fetchProfile } from '../api';
+import { fetchProfile } from '../services/api';
 
 const getInitials = (value) =>
   value

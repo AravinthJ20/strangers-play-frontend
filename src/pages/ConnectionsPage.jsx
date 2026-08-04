@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { fetchConnections } from '../api';
+import { fetchConnections } from '../services/api';
 
 const getInitials = (value) =>
   value
@@ -10,6 +10,16 @@ const getInitials = (value) =>
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'SP';
+
+const renderAvatar = (person) => (
+  <div className="people-card-avatar people-list-avatar">
+    {person.avatar ? (
+      <img src={person.avatar} alt={person.username} className="people-card-avatar-image" />
+    ) : (
+      getInitials(person.username)
+    )}
+  </div>
+);
 
 export default function ConnectionsPage() {
   const navigate = useNavigate();
@@ -58,7 +68,7 @@ export default function ConnectionsPage() {
             {connections.map((person) => (
               <article key={person._id} className="people-list-card">
                 <div className="people-list-card-head">
-                  <div className="people-card-avatar people-list-avatar">{getInitials(person.username)}</div>
+                  {renderAvatar(person)}
                   <div className="people-card-copy">
                     <strong>{person.username}</strong>
                     <span>{person.email}</span>

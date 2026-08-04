@@ -481,6 +481,40 @@ input {
 
 .profile-page {
   min-height: 100vh;
+.people-search-input {
+  padding: 8px 12px;
+  padding-left: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(18,33,58,0.08);
+  min-width: 240px;
+  background: rgba(255,255,255,0.96) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'><circle cx='11' cy='11' r='7' stroke='%2317223a' stroke-width='2' fill='none'/><line x1='21' y1='21' x2='16.65' y2='16.65' stroke='%2317223a' stroke-width='2' stroke-linecap='round'/></svg>") no-repeat 12px center;
+  background-size: 16px 16px;
+  box-shadow: 0 8px 20px rgba(18,33,58,0.06);
+  transition: box-shadow 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.people-search-input::placeholder { color: #7a8a97; }
+
+.people-search-input:focus {
+  outline: none;
+  border-color: #2a9d8f;
+  box-shadow: 0 12px 30px rgba(42,157,143,0.12);
+  background-color: #fff;
+}
+
+@media (max-width: 760px) {
+  .people-search-input { min-width: 140px; padding-left: 36px; }
+}
+.people-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.people-search-input:hover {
+  border-color: rgba(18,33,58,0.18);
+  box-shadow: 0 10px 26px rgba(18,33,58,0.08);
+}
+.people-header .eyebrow { margin-bottom: 6px; }
   padding: 28px;
 }
 
@@ -832,6 +866,14 @@ input {
   font-weight: 800;
   background: linear-gradient(135deg, #17324f 0%, #2a9d8f 100%);
   box-shadow: 0 16px 30px rgba(23, 50, 79, 0.18);
+  overflow: hidden;
+}
+
+.people-card-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .people-deck-stage {
@@ -910,6 +952,7 @@ input {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 .people-list-avatar {
@@ -917,6 +960,10 @@ input {
   height: 58px;
   font-size: 1.15rem;
   flex: 0 0 auto;
+}
+
+.people-list-card .people-card-copy {
+  min-width: 0;
 }
 
 .people-card-status-row,
@@ -1344,6 +1391,14 @@ input {
   letter-spacing: 0.08em;
   box-shadow: 0 12px 24px rgba(23, 50, 79, 0.2);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sidebar-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .sidebar-user {
@@ -1372,6 +1427,11 @@ input {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Add a little vertical space between the profile row and the meta badges */
+.sidebar-profile-details .sidebar-profile-meta {
+  margin-top: 8px;
 }
 
 .sidebar-profile-meta span {
@@ -1521,6 +1581,20 @@ input {
   gap: 8px;
 }
 
+.chat-header-search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-header-search input {
+  min-width: 260px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(18,33,58,0.12);
+  background: rgba(255,255,255,0.92);
+}
+
 .icon-button {
   width: 38px;
   min-width: 38px;
@@ -1543,6 +1617,7 @@ input {
 .ui-icon {
   width: 18px;
   height: 18px;
+  color:black;
   display: block;
   flex: 0 0 auto;
 }
@@ -1881,6 +1956,29 @@ input {
   box-shadow: 0 14px 28px rgba(18, 33, 58, 0.12);
 }
 
+.message-menu-seen {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(240, 247, 246, 0.9);
+  border: 1px solid rgba(18,33,58,0.06);
+  display: grid;
+  gap: 4px;
+}
+
+.message-menu-seen small {
+  color: #5d6a7c;
+  font-size: 0.78rem;
+}
+
+.message-menu-seen strong {
+  font-size: 0.9rem;
+  color: #12213a;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .message.sent .message-inline-menu {
   background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.18);
@@ -1917,6 +2015,44 @@ input {
 .message-menu-item.delete:hover {
   background: rgba(188, 71, 73, 0.1);
   border-color: rgba(188, 71, 73, 0.2);
+}
+
+/* three-dot menu trigger inside each message */
+.message {
+  position: relative;
+}
+
+.message-menu-trigger {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 6;
+}
+
+.menu-trigger-btn {
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: rgba(18,33,58,0.7);
+}
+
+.menu-trigger-btn:hover {
+  background: rgba(23,50,79,0.06);
+}
+
+/* position inline menu so it doesn't shift message content */
+.message-inline-menu {
+  position: absolute;
+  top: 44px;
+  right: 10px;
+  width: 220px;
+  z-index: 8;
 }
 
 .message-menu-item-icon {
@@ -2363,6 +2499,21 @@ input {
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(18, 33, 58, 0.08);
   box-shadow: 0 14px 30px rgba(18, 33, 58, 0.06);
+}
+
+/* Ensure action buttons inside panels are visible and don't get clipped */
+.group-panel button {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  margin-top: 12px;
+  box-shadow: 0 14px 30px rgba(23, 50, 79, 0.06);
+}
+
+/* Add bottom padding to sidebar to avoid clipping with fixed UI elements */
+.sidebar {
+  padding-bottom: 84px; /* safe area for floating buttons */
 }
 
 .request-card {
@@ -2929,4 +3080,76 @@ input {
 }
 .picker-action-grid-three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Composer input: icons inside the message textbox */
+.composer .input-with-icons {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.composer .input-with-icons .icon-left {
+  position: absolute;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.composer .input-with-icons input {
+  width: 100%;
+  padding: 10px 14px;
+  padding-left: 44px; /* space for left icon */
+  padding-right: 92px; /* space for right icons */
+  border-radius: 999px;
+  border: 1px solid rgba(18, 33, 58, 0.12);
+  background: rgba(255,255,255,0.96);
+  font-size: 0.94rem;
+}
+
+.composer .input-with-icons .input-icons-right {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.composer .input-with-icons .icon-button {
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+/* right-side non-send icons should be transparent (no white circle) */
+.composer .input-with-icons .input-icons-right .ghost-button:not(.send-icon) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 6px;
+}
+
+.composer .input-with-icons .send-icon {
+  background: linear-gradient(135deg, #0f766e 0%, #2a9d8f 100%);
+  color: #fff;
+  min-width: 44px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+@media (max-width: 900px) {
+  .composer .input-with-icons input { padding-right: 72px; }
 }

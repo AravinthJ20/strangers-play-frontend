@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FiArrowLeft, FiImage, FiTrash2, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { appConfig } from '../config';
-import { createStatus, deleteStatus, fetchMyStatuses, fetchStatusFeed, markStatusViewed, uploadChatMedia } from '../api';
+import { appConfig } from '../../config';
+import { createStatus, deleteStatus, fetchMyStatuses, fetchStatusFeed, markStatusViewed, uploadChatMedia } from '../../api';
 
 const statusPalette = ['#17324f', '#0f766e', '#bc4749', '#7c3aed', '#f77f00', '#264653'];
 

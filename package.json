@@ -13,11 +13,14 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "node --max-old-space-size=1024 ./node_modules/react-scripts/bin/react-scripts.js build",
-    "test": "react-scripts test --env=jsdom",
+    "test": "react-scripts test --env=jsdom --watchAll=false",
     "eject": "react-scripts eject"
   },
   "devDependencies": {
-    "react-scripts": "^5.0.1"
+    "react-scripts": "^5.0.1",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/user-event": "^14.0.0"
   },
   "browserslist": {
     "production": [
