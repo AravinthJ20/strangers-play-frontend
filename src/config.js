@@ -16,6 +16,7 @@ export const appConfig = {
   vapidPublicKey:
     "BESZWDQRyJyEgRow94uzdVWVKhOUAo460urAwdaFYhhHYQoqWdDfrZj1ZriG7G0mPrl0bZQkiBrBTUw0D3dCtNI",
 
+  supportEmail: 'support@greenlynk.xyz',
   features: {
     status: true,
     agent: true,

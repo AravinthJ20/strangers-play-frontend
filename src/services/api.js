@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { appConfig } from './config';
+import { appConfig } from '../config';
 
 const client = axios.create({ baseURL: appConfig.apiBaseUrl, headers: { 'Content-Type': 'application/json' } });
 const withAuth = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
@@ -18,8 +18,11 @@ export const fetchContacts = (token) => client.get('/api/users', withAuth(token)
 export const fetchConnections = (token) => client.get('/api/users/connections', withAuth(token)).then((res) => res.data);
 export const fetchProfile = (token) => client.get('/api/users/profile', withAuth(token)).then((res) => res.data);
 export const updateProfile = (payload, token) => client.patch('/api/users/profile', payload, withAuth(token)).then((res) => res.data);
+export const activatePremium = (token) => client.post('/api/users/premium/activate', {}, withAuth(token)).then((res) => res.data);
 export const fetchDiscoverPeople = (token) => client.get('/api/users/discover', withAuth(token)).then((res) => res.data);
 export const fetchFeed = (token) => client.get('/api/users/feed', withAuth(token)).then((res) => res.data);
+export const fetchPremiumInsights = (token) => client.get('/api/users/premium/insights', withAuth(token)).then((res) => res.data);
+export const fetchPremiumRecommendations = (token) => client.get('/api/users/premium/recommendations', withAuth(token)).then((res) => res.data);
 export const fetchConnectionRequests = (token) => client.get('/api/users/requests', withAuth(token)).then((res) => res.data);
 export const fetchRequests = (token) => client.get('/api/users/requests', withAuth(token)).then((res) => res.data);
 export const searchUsers = (query, token) => client.get(`/api/users/search?query=${encodeURIComponent(query)}`, withAuth(token)).then((res) => res.data);

@@ -51,7 +51,7 @@ import {
   subscribeToPush,
   updateGroup,
   uploadChatMedia
-} from '../api';
+} from '../services/api';
 
 const emojiGroups = [
   {
@@ -339,6 +339,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [showRenameGroupModal, setShowRenameGroupModal] = useState(false);
   const [showGroupOptionsMenu, setShowGroupOptionsMenu] = useState(false);
   const [showInvitePanel, setShowInvitePanel] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [groupError, setGroupError] = useState('');
   const [groupActionError, setGroupActionError] = useState('');
   const [renameGroupDraft, setRenameGroupDraft] = useState({ name: '', description: '' });
@@ -3355,18 +3356,32 @@ export default function ChatPage({ user, onLogoutComplete }) {
         </div>
       )}
 
-      <div className="quick-fab-stack">
-        <button className="people-fab" onClick={() => navigate('/people')}>
-          <span><FiUsers className="ui-icon" /></span>
-          <strong>People</strong>
-        </button>
-        {appConfig.features?.status && (
-          <button className="status-fab" onClick={() => navigate('/status')}>
-            <span><FiPlus className="ui-icon" /></span>
-            <strong>Status</strong>
-          </button>
+      <div className={`quick-fab-stack ${quickActionsOpen ? 'expanded' : 'collapsed'}`}>
+        {quickActionsOpen && (
+          <div className="quick-fab-actions">
+            <button className="people-fab" type="button" onClick={() => navigate('/people')}>
+              <span><FiUsers className="ui-icon" /></span>
+              <strong>People</strong>
+            </button>
+            {appConfig.features?.status && (
+              <button className="status-fab" type="button" onClick={() => navigate('/status')}>
+                <span><FiPlus className="ui-icon" /></span>
+                <strong>Status</strong>
+              </button>
+            )}
+            <AgentFab />
+          </div>
         )}
-        <AgentFab />
+        <button
+          className="quick-fab-toggle"
+          type="button"
+          aria-expanded={quickActionsOpen}
+          aria-label={quickActionsOpen ? 'Collapse quick actions' : 'Expand quick actions'}
+          onClick={() => setQuickActionsOpen((current) => !current)}
+        >
+          <span>{quickActionsOpen ? <FiX className="ui-icon" /> : <FiMoreVertical className="ui-icon" />}</span>
+          <strong>{quickActionsOpen ? 'Close' : 'Menu'}</strong>
+        </button>
       </div>
     </div>
   );

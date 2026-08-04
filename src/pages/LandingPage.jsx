@@ -79,6 +79,7 @@ export default function LandingPage() {
           <span>Responsive layouts from the first impression through the chat experience.</span>
         </div>
       </section>
+
     </div>
   );
 }

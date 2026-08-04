@@ -13,7 +13,7 @@ export default function AgentFab() {
       <span>
         <FiZap className="ui-icon" />
       </span>
-      <strong>Agent</strong>
+      <strong>Assistant</strong>
     </button>
   );
 }

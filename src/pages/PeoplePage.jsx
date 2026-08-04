@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { fetchFeed, ignoreUser, sendInterest } from '../api';
+import { fetchFeed, fetchProfile, fetchPremiumRecommendations, ignoreUser, sendInterest } from '../services/api';
 
 const getInitials = (value) =>
   value
@@ -33,10 +33,13 @@ export default function PeoplePage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const [people, setPeople] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [premiumRecommendations, setPremiumRecommendations] = useState([]);
   const [hiddenIds, setHiddenIds] = useState([]);
   const [peopleSearch, setPeopleSearch] = useState('');
   const [dragState, setDragState] = useState({ id: '', startX: 0, offsetX: 0, dragging: false });
   const [loading, setLoading] = useState(true);
+  const [premiumLoading, setPremiumLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -45,6 +48,30 @@ export default function PeoplePage() {
       .catch((loadError) => setError(loadError.response?.data?.error || 'Unable to load people right now.'))
       .finally(() => setLoading(false));
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    fetchProfile(token)
+      .then(setProfile)
+      .catch(() => {})
+      .finally(() => {
+        /* ignore profile load failure here */
+      });
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !profile?.premium) {
+      setPremiumRecommendations([]);
+      return;
+    }
+
+    setPremiumLoading(true);
+    fetchPremiumRecommendations(token)
+      .then(setPremiumRecommendations)
+      .catch(() => setPremiumRecommendations([]))
+      .finally(() => setPremiumLoading(false));
+  }, [profile?.premium, token]);
 
   const visiblePeople = useMemo(
     () => {
@@ -139,6 +166,37 @@ export default function PeoplePage() {
             </button>
           </div>
       </header>
+
+      {profile?.premium ? (
+        <section className="people-premium-panel">
+          <div className="premium-header">
+            <strong className="eyebrow">Premium Discovery</strong>
+            <p>As a premium member, you get access to a special recommendations panel.</p>
+          </div>
+          {premiumLoading ? (
+            <div className="empty-state slim">Loading premium recommendations...</div>
+          ) : premiumRecommendations.length ? (
+            <div className="premium-recommendation-list">
+              {premiumRecommendations.map((person) => (
+                <article key={person._id} className="premium-recommendation-card">
+                  {renderAvatar(person)}
+                  <div className="premium-recommendation-copy">
+                    <strong>{person.username}</strong>
+                    <span>{person.email}</span>
+                    <small>{person.online ? 'Online now' : 'Available to connect'}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state slim">No premium recommendations available yet.</div>
+          )}
+        </section>
+      ) : (
+        <div className="premium-cta-banner">
+          Upgrade to premium on the <a href="/pricing">Pricing</a> page to unlock premium recommendations and priority discovery.
+        </div>
+      )}
 
       <div className="people-top-nav">
         <button className="people-top-nav-link active" type="button" onClick={() => navigate('/people')}>People</button>

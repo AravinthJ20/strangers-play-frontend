@@ -25,10 +25,24 @@ export default function useAgentChat(token) {
     if (!token) return;
     getAgentCapabilities(token)
       .then((data) => {
+        if (Array.isArray(data.history) && data.history.length > 0) {
+          setMessages(
+            data.history.map((entry, index) => ({
+              id: `${entry.role}-${entry.timestamp || index}`,
+              role: entry.role,
+              text: entry.text,
+              ok: entry.ok !== false,
+              action: entry.action || null,
+              data: entry.data || null
+            }))
+          );
+          return;
+        }
+
         setMessages([buildAgentMessage(data.reply)]);
       })
       .catch((error) => {
-        setBootError(error.response?.data?.error || 'Unable to load the AI agent right now.');
+        setBootError(error.response?.data?.error || 'Unable to load Lynk Assistant right now.');
       });
   }, [token]);
 

@@ -64,7 +64,14 @@ export default function ViewProfilePage() {
                 <strong>{profile.username}</strong>
                 <span>{profile.email}</span>
                 <small>{profile.online ? 'Online now' : 'Available on Green Lynk'}</small>
-                <p>{profile.bio || 'Add a short bio in Edit Profile so people understand your vibe faster.'}</p>
+                <p>
+                  {profile.premium
+                    ? 'You are a premium member with priority support and exclusive access.'
+                    : 'Upgrade to premium in the Pricing page to enjoy priority support and premium features.'}
+                </p>
+                <p>
+                  <strong>{profile.premium ? 'Premium member' : 'Standard account'}</strong>
+                </p>
               </div>
             </article>
 

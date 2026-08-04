@@ -12,6 +12,13 @@ import EditProfilePage from './pages/EditProfilePage';
 import StatusPage from './pages/StatusPage';
 import AgentPage from './pages/AgentAssistantPage';
 import LandingPage from './pages/LandingPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsAndConditions from './pages/TermsAndConditions';
+import RefundPolicy from './pages/RefundPolicy';
+import PricingPage from './pages/PricingPage';
+import Footer from './components/common/Footer';
 import { appConfig } from './config';
 import { getCurrentUser } from './services/api';
 
@@ -39,10 +46,11 @@ function App() {
 
   useEffect(() => {
     const token = getStoredToken();
+    const publicPaths = ['/', '/register', '/login', '/forgot-password', '/about', '/contact', '/privacy-policy', '/terms', '/refund-policy', '/pricing'];
     if (!token) {
       setUser(null);
       setAuthChecked(true);
-      if (!['/', '/register', '/login', '/forgot-password'].includes(location.pathname)) {
+      if (!publicPaths.includes(location.pathname)) {
         navigate('/');
       }
       return;
@@ -64,23 +72,32 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={user ? <Navigate to="/chat" /> : <LandingPage />} />
-      <Route path="/login" element={user ? <Navigate to="/chat" replace /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/chat" replace /> : <Register />} />
-      <Route path="/forgot-password" element={user ? <Navigate to="/chat" replace /> : <ForgotPassword />} />
-      <Route path="/chat" element={user ? <ChatPage user={user} onLogoutComplete={handleLoggedOut} /> : <Navigate to="/login" />} />
-      <Route path="/view/profile" element={user ? <ViewProfilePage /> : <Navigate to="/login" />} />
-      <Route path="/edit/profile" element={user ? <EditProfilePage /> : <Navigate to="/login" />} />
-      <Route path="/people" element={user ? <PeoplePage /> : <Navigate to="/login" />} />
-      <Route path="/requests" element={user ? <RequestsPage /> : <Navigate to="/login" />} />
-      <Route path="/connections" element={user ? <ConnectionsPage /> : <Navigate to="/login" />} />
-      <Route path="/status" element={user ? <StatusPage user={user} /> : <Navigate to="/login" />} />
-      {appConfig.features?.agent && (
-        <Route path="/agent" element={user ? <AgentPage /> : <Navigate to="/login" />} />
-      )}
-      <Route path="*" element={<Navigate to={user ? '/chat' : '/'} />} />
-    </Routes>
+    <div className="app-shell">
+      <Routes>
+        <Route path="/" element={user ? <Navigate to="/chat" /> : <LandingPage />} />
+        <Route path="/login" element={user ? <Navigate to="/chat" replace /> : <Login />} />
+        <Route path="/register" element={user ? <Navigate to="/chat" replace /> : <Register />} />
+        <Route path="/forgot-password" element={user ? <Navigate to="/chat" replace /> : <ForgotPassword />} />
+        <Route path="/chat" element={user ? <ChatPage user={user} onLogoutComplete={handleLoggedOut} /> : <Navigate to="/login" />} />
+        <Route path="/view/profile" element={user ? <ViewProfilePage /> : <Navigate to="/login" />} />
+        <Route path="/edit/profile" element={user ? <EditProfilePage /> : <Navigate to="/login" />} />
+        <Route path="/people" element={user ? <PeoplePage /> : <Navigate to="/login" />} />
+        <Route path="/requests" element={user ? <RequestsPage /> : <Navigate to="/login" />} />
+        <Route path="/connections" element={user ? <ConnectionsPage /> : <Navigate to="/login" />} />
+        <Route path="/status" element={user ? <StatusPage user={user} /> : <Navigate to="/login" />} />
+        {appConfig.features?.agent && (
+          <Route path="/agent" element={user ? <AgentPage /> : <Navigate to="/login" />} />
+        )}
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="*" element={<Navigate to={user ? '/chat' : '/'} />} />
+      </Routes>
+      {!user && <Footer />}
+    </div>
   );
 }
 
