@@ -1,0 +1,30 @@
+name: Debug EC2 Host
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Show EC2 Host
+        run: |
+          echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
+
+      - name: DNS Lookup
+        run: |
+          nslookup ${{ secrets.EC2_HOST }} || true
+          ping -c 3 ${{ secrets.EC2_HOST }} || true
+
+      - name: Test SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          timeout: 60s
+          script: |
+            echo "Connected Successfully!"
+            hostname
+            pwd
