@@ -1,0 +1,40 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Frontend
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/green-lynk-frontend
+
+            echo "Pulling latest code..."
+            git pull origin main
+
+            echo "Installing dependencies..."
+            npm install
+
+            echo "Building application..."
+            NODE_OPTIONS="--max-old-space-size=2048" npm run build
+
+            echo "Deploying build..."
+            sudo rm -rf /var/www/html/*
+            sudo cp -r build/* /var/www/html/
+
+            echo "Reloading Nginx..."
+            sudo systemctl reload nginx
+
+            echo "Frontend deployment completed."
