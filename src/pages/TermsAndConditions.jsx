@@ -22,8 +22,17 @@ export default function TermsAndConditions() {
       <section>
         <h2>Payment and pricing</h2>
         <p>
-          Pricing is available on request. Premium accounts and custom onboarding may be subject to separate
-          agreements.
+          Paid plans, if purchased, are billed at the prices shown on the Pricing page
+          or in a written quote shared by Green Lynk. Premium accounts and custom
+          onboarding may be subject to separate agreements.
+        </p>
+      </section>
+      <section>
+        <h2>Digital delivery</h2>
+        <p>
+          Green Lynk provides digital access to messaging, community, and premium
+          support features. No physical goods are shipped unless expressly stated for a
+          separate service.
         </p>
       </section>
       <section>

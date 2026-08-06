@@ -1,6 +1,8 @@
 import { appConfig } from '../config';
 
 export default function ContactPage() {
+  const supportPhoneHref = appConfig.supportPhone.replace(/\s/g, '');
+
   return (
     <main className="static-page">
       <h1>Contact Us</h1>
@@ -11,7 +13,15 @@ export default function ContactPage() {
       <section>
         <h2>Get in touch</h2>
         <p>Email: <a href={`mailto:${appConfig.supportEmail}`}>{appConfig.supportEmail}</a></p>
+        <p className="is-hidden">Phone: <a href={`tel:${supportPhoneHref}`}>{appConfig.supportPhone}</a></p>
         <p>Response time: within 1 business day.</p>
+      </section>
+      <section>
+        <h2>Business details</h2>
+        <p>
+          Green Lynk provides digital social networking, messaging, community, and
+          premium support services through this website and application.
+        </p>
       </section>
       <section>
         <h2>Business inquiries</h2>

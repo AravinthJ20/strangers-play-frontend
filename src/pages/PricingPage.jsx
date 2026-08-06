@@ -9,6 +9,7 @@ export default function PricingPage() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [activating, setActivating] = useState(false);
+  const supportPhoneHref = appConfig.supportPhone.replace(/\s/g, '');
 
   useEffect(() => {
     if (!token) return;
@@ -40,16 +41,28 @@ export default function PricingPage() {
     <main className="static-page">
       <h1>Pricing</h1>
       <p>
-        Green Lynk offers flexible pricing designed for growing communities and teams.
-        We recommend contacting us for a custom pricing plan that matches your usage and support needs.
+        Green Lynk offers clear pricing for individuals, growing communities, and
+        teams that need premium support.
       </p>
       <section>
         <h2>Available plans</h2>
-        <ul>
-          <li>Starter: basic chat and connection features for small communities.</li>
-          <li>Growth: advanced media, group management, and onboarding support.</li>
-          <li>Premium: dedicated support, custom branding, and priority delivery.</li>
-        </ul>
+        <div className="pricing-plan-grid">
+          <article className="pricing-plan-card">
+            <h3>Starter</h3>
+            <strong>Free</strong>
+            <p>Basic chat, connection requests, groups, and profile features.</p>
+          </article>
+          <article className="pricing-plan-card">
+            <h3>Premium</h3>
+            <strong>Rs. 199 / month</strong>
+            <p>Priority support, premium discovery, and early access to advanced tools.</p>
+          </article>
+          <article className="pricing-plan-card">
+            <h3>Community</h3>
+            <strong>Rs. 999 / month</strong>
+            <p>Premium access for community workflows, onboarding help, and custom support.</p>
+          </article>
+        </div>
       </section>
       <section>
         <h2>Premium access</h2>
@@ -68,7 +81,7 @@ export default function PricingPage() {
                 {status && <div className="auth-info">{status}</div>}
                 {error && <div className="auth-error">{error}</div>}
                 <button className="button button-primary" onClick={handleActivatePremium} disabled={activating}>
-                  {activating ? 'Activating premium…' : 'Activate Premium'}
+                  {activating ? 'Activating premium...' : 'Activate Premium'}
                 </button>
               </>
             )}
@@ -88,6 +101,7 @@ export default function PricingPage() {
       <section>
         <h2>Contact</h2>
         <p>Email: <a href={`mailto:${appConfig.supportEmail}`}>{appConfig.supportEmail}</a></p>
+        <p className="is-hidden">Phone: <a href={`tel:${supportPhoneHref}`}>{appConfig.supportPhone}</a></p>
       </section>
     </main>
   );

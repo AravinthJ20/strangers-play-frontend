@@ -20,6 +20,7 @@ export default function Register() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarUpload, setAvatarUpload] = useState(null);
   const [otp, setOtp] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [inviteInfo, setInviteInfo] = useState(null);
@@ -57,6 +58,11 @@ export default function Register() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setError('Please agree to the Terms & Conditions before registering');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const avatarPayload =
@@ -73,6 +79,7 @@ export default function Register() {
         email: email.trim().toLowerCase(),
         password,
         inviteToken,
+        acceptedTerms,
         avatar: avatarMode === 'url' ? avatarUrl.trim() : '',
         avatarMode,
         avatarUpload: avatarPayload
@@ -157,6 +164,18 @@ export default function Register() {
           </div>
           <input placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
           <input placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" required />
+          <label className="terms-consent-row">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              required
+            />
+            <span>
+              I agree to the <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms & Conditions</Link>
+              {' '}and <Link to="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>.
+            </span>
+          </label>
           <button type="submit" disabled={submitting}>{submitting ? 'Sending OTP...' : 'Send OTP'}</button>
         </form>
       ) : (
