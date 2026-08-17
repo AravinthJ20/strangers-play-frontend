@@ -52,11 +52,22 @@ export default function Register() {
     event.preventDefault();
     setError('');
     setStatusMessage('');
+    const trimmedPassword = password.trim();
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+if (trimmedPassword.length < 6) {
+  setError('Password must be at least 6 characters long');
+  return;
+}
+
+if (trimmedPassword !== confirmPassword.trim()) {
+  setError('Passwords do not match');
+  return;
+}
+
+    // if (password !== confirmPassword) {
+    //   setError('Passwords do not match');
+    //   return;
+    // }
 
     if (!acceptedTerms) {
       setError('Please agree to the Terms & Conditions before registering');
@@ -162,8 +173,12 @@ export default function Register() {
               </label>
             )}
           </div>
-          <input placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
-          <input placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" required />
+          <input placeholder="Password" 
+            minLength={6}
+          value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
+          <input placeholder="Confirm Password"
+            minLength={6}
+          value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" required />
           <label className="terms-consent-row">
             <input
               type="checkbox"

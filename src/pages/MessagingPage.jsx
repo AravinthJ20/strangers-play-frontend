@@ -26,7 +26,7 @@ import {
 } from 'react-icons/fi';
 import { MdDone, MdDoneAll, MdSchedule } from 'react-icons/md';
 import { io } from 'socket.io-client';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { appConfig } from '../config';
 import { useAgentCallBridge } from '../hooks/useAgentCallBridge';
 import AgentFab from '../components/common/AgentFab';
@@ -306,6 +306,7 @@ const MediaPreview = ({ attachment }) => {
 
 export default function ChatPage({ user, onLogoutComplete }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [socket, setSocket] = useState(null);
   const [chats, setChats] = useState([]);
   const [connections, setConnections] = useState([]);
@@ -840,6 +841,18 @@ export default function ChatPage({ user, onLogoutComplete }) {
 
   loadConversationRef.current = loadConversation;
 
+  useEffect(() => {
+  const selectedUser = location.state?.selectedUser;
+
+  if (!selectedUser || !socket) return;
+
+  loadConversation(selectedUser);
+
+  navigate(location.pathname, {
+    replace: true,
+    state: {},
+  });
+}, [location.state?.selectedUser, socket]);
   const loadOlderMessages = async () => {
     if (!activeChat || !historyPageInfo.hasMore || !historyPageInfo.nextCursor || loadingOlderMessages) return;
 
@@ -2209,23 +2222,31 @@ export default function ChatPage({ user, onLogoutComplete }) {
           <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search username or email..." />
           {searchTerm.trim().length >= 2 && (
             <div className="navbar-search-results">
-              {searchResults.map((entry) => (
-                <div
-                  key={entry._id}
-                  className={`request-card ${entry.connectionStatus === 'connected' ? 'request-card-clickable' : ''}`}
-                  onClick={() => {
-                    if (entry.connectionStatus === 'connected') {
-                      loadConversation(entry);
-                    }
-                  }}
-                >
-                  <div>
-                    <strong>{entry.username}</strong>
-                    <small>{entry.email}</small>
-                  </div>
-                  {renderSearchAction(entry)}
-                </div>
-              ))}
+           {searchResults.map((entry) => (
+  <div
+    key={entry._id}
+    className="request-card request-card-clickable"
+    onClick={() => {
+      if (
+        entry.connectionStatus === 'connected' ||
+        entry.connectionStatus === 'accepted'
+      ) {
+        loadConversation(entry);
+
+        // Close search popup
+        setSearchTerm('');
+        setSearchResults([]);
+      }
+    }}
+  >
+    <div>
+      <strong>{entry.username}</strong>
+      <small>{entry.email}</small>
+    </div>
+
+    {renderSearchAction(entry)}
+  </div>
+))}
               {searchResults.length === 0 && <div className="empty-state slim">No matching people found.</div>}
             </div>
           )}
@@ -3380,7 +3401,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
           onClick={() => setQuickActionsOpen((current) => !current)}
         >
           <span>{quickActionsOpen ? <FiX className="ui-icon" /> : <FiMoreVertical className="ui-icon" />}</span>
-          <strong>{quickActionsOpen ? 'Close' : 'Menu'}</strong>
+          <strong>{quickActionsOpen ? '' : ''}</strong>
         </button>
       </div>
     </div>

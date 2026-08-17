@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiArrowLeft, FiSearch, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { fetchFeed, fetchProfile, fetchPremiumRecommendations, ignoreUser, sendInterest } from '../services/api';
 
@@ -154,12 +154,28 @@ export default function PeoplePage() {
           <p>Browse the feed, ignore profiles you want to skip, and mark interested when you want to connect.</p>
         </div>
           <div className="people-header-actions">
-            <input
-              className="people-search-input"
-              value={peopleSearch}
-              onChange={(e) => setPeopleSearch(e.target.value)}
-              placeholder="Search people by name or email..."
-            />
+           <div className="people-search-box">
+  <FiSearch className="people-search-icon" />
+
+  <input
+    className="people-search-input"
+    value={peopleSearch}
+    onChange={(e) => setPeopleSearch(e.target.value)}
+    placeholder="Search people..."
+    type="search"
+  />
+
+  {peopleSearch && (
+    <button
+      type="button"
+      className="people-search-clear"
+      onClick={() => setPeopleSearch('')}
+      aria-label="Clear search"
+    >
+      <FiX />
+    </button>
+  )}
+</div>
             <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
               <FiArrowLeft className="ui-icon" />
               Back to Chat
@@ -173,7 +189,7 @@ export default function PeoplePage() {
             <strong className="eyebrow">Premium Discovery</strong>
             <p>As a premium member, you get access to a special recommendations panel.</p>
           </div>
-          {premiumLoading ? (
+          {/* {premiumLoading ? (
             <div className="empty-state slim">Loading premium recommendations...</div>
           ) : premiumRecommendations.length ? (
             <div className="premium-recommendation-list">
@@ -190,7 +206,7 @@ export default function PeoplePage() {
             </div>
           ) : (
             <div className="empty-state slim">No premium recommendations available yet.</div>
-          )}
+          )} */}
         </section>
       ) : (
         <div className="premium-cta-banner">
