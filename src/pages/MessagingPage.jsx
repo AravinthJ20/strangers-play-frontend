@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  FiBell,
   FiEdit2,
   FiEye,
   FiFileText,
   FiImage,
+  FiMenu,
   FiSearch,
   FiShare2,
+  FiChevronLeft,
   FiLogOut,
   FiMapPin,
   FiMic,
@@ -329,6 +332,7 @@ export default function ChatPage({ user, onLogoutComplete }) {
   const [showComposerPopup, setShowComposerPopup] = useState(false);
   const [composerPopupView, setComposerPopupView] = useState('menu');
   const [activeTab, setActiveTab] = useState('chats');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [typingState, setTypingState] = useState({ direct: '', group: '' });
@@ -2209,9 +2213,19 @@ export default function ChatPage({ user, onLogoutComplete }) {
   };
 
   return (
-    <div className="chat-shell">
+    <div className={`chat-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <header className="app-navbar">
         <div className="app-navbar-brand">
+          <button
+            className="ghost-button icon-button sidebar-toggle-button"
+            type="button"
+            onClick={() => setSidebarCollapsed((prev) => !prev)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!sidebarCollapsed}
+          >
+            {sidebarCollapsed ? <FiMenu className="ui-icon" /> : <FiChevronLeft className="ui-icon" />}
+          </button>
                 <img src="/assets/images/Strangers_Play_logo.png" alt="Green Lynk" className="app-navbar-logo" />
           <div>
                   <strong>Green Lynk</strong>
@@ -2252,6 +2266,18 @@ export default function ChatPage({ user, onLogoutComplete }) {
           )}
         </div>
         <div className="app-navbar-actions">
+          <button
+            className="ghost-button icon-button nav-request-button"
+            type="button"
+            onClick={() => navigate('/requests')}
+            title="Connection requests"
+            aria-label={`${incomingRequests.length} connection request${incomingRequests.length === 1 ? '' : 's'}`}
+          >
+            <FiBell className="ui-icon" />
+            {incomingRequests.length > 0 && (
+              <span className="nav-request-badge">{incomingRequests.length > 99 ? '99+' : incomingRequests.length}</span>
+            )}
+          </button>
           <button className="ghost-button button-with-icon" onClick={() => setShowInvitePanel((prev) => !prev)}>
             <FiUserPlus className="ui-icon" />
             Invite Friends
@@ -2266,145 +2292,147 @@ export default function ChatPage({ user, onLogoutComplete }) {
           </button>
         </div>
       </header>
-      <aside className="sidebar">
-        <div className="sidebar-header sidebar-profile-card">
-          <div className="sidebar-profile-details">
-            <div className="sidebar-user-row">
-              <div className="sidebar-avatar">
-                {user.avatar ? <img src={user.avatar} alt={user.username} className="sidebar-avatar-image" /> : getInitials(user.username)}
+      <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
+        <div className="sidebar-collapse-content">
+          <div className="sidebar-header sidebar-profile-card">
+            <div className="sidebar-profile-details">
+              <div className="sidebar-user-row">
+                <div className="sidebar-avatar">
+                  {user.avatar ? <img src={user.avatar} alt={user.username} className="sidebar-avatar-image" /> : getInitials(user.username)}
+                </div>
+                <div className="sidebar-user">
+                  <strong>{user.username}</strong>
+                </div>
               </div>
-              <div className="sidebar-user">
-                <strong>{user.username}</strong>
+              <div className="sidebar-profile-meta">
+               
+                <span>{connections.length} connections</span>
               </div>
             </div>
-            <div className="sidebar-profile-meta">
-             
-              <span>{connections.length} connections</span>
+            <div className="sidebar-profile-actions">
+              <button className="ghost-button icon-button profile-icon-button" type="button" onClick={() => navigate('/view/profile')} title="View Profile" aria-label="View Profile">
+                <FiEye className="ui-icon" />
+              </button>
+              <button className="ghost-button icon-button profile-icon-button" type="button" onClick={() => navigate('/edit/profile')} title="Edit Profile" aria-label="Edit Profile">
+                <FiEdit2 className="ui-icon" />
+              </button>
             </div>
           </div>
-          <div className="sidebar-profile-actions">
-            <button className="ghost-button icon-button profile-icon-button" type="button" onClick={() => navigate('/view/profile')} title="View Profile" aria-label="View Profile">
-              <FiEye className="ui-icon" />
-            </button>
-            <button className="ghost-button icon-button profile-icon-button" type="button" onClick={() => navigate('/edit/profile')} title="Edit Profile" aria-label="Edit Profile">
-              <FiEdit2 className="ui-icon" />
-            </button>
+
+          <div className="sidebar-tabs sidebar-section">
+            {[
+              { id: 'chats', label: 'Chats' },
+              { id: 'groups', label: 'Groups' },
+              { id: 'connections', label: 'Connections' }
+            ].map((tab) => (
+              <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
+                {tab.label}
+              </button>
+            ))}
           </div>
-        </div>
 
-        <div className="sidebar-tabs sidebar-section">
-          {[
-            { id: 'chats', label: 'Chats' },
-            { id: 'groups', label: 'Groups' },
-            { id: 'connections', label: 'Connections' }
-          ].map((tab) => (
-            <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {showCreateGroup && (
-          <form className="group-panel sidebar-inline-panel" onSubmit={handleCreateGroup}>
-            <h3>Create group</h3>
-            {groupError && <div className="auth-error">{groupError}</div>}
-            <input
-              value={groupDraft.name}
-              onChange={(e) => setGroupDraft((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="Group name"
-            />
-            <input
-              value={groupDraft.description}
-              onChange={(e) => setGroupDraft((prev) => ({ ...prev, description: e.target.value }))}
-              placeholder="Description"
-            />
-            <div className="group-picker-summary">
-              <div className="group-picker-summary-head">
-                <div>
-                  <strong>Select people</strong>
-                  <p>{selectedGroupMembers.length > 0 ? `${selectedGroupMembers.length} selected` : 'No people selected yet'}</p>
-                </div>
-                <button className="ghost-button" type="button" onClick={() => setShowGroupMemberPicker(true)}>
-                  Choose People
-                </button>
-              </div>
-              {selectedGroupMembers.length > 0 ? (
-                <div className="group-members selected-members">
-                  {selectedGroupMembers.map((member) => (
-                    <button
-                      key={member._id}
-                      type="button"
-                      className="member-pill removable"
-                      onClick={() =>
-                        setGroupDraft((prev) => ({
-                          ...prev,
-                          members: prev.members.filter((id) => id !== member._id)
-                        }))
-                      }
-                    >
-                      <span>{member.username}</span>
-                      <span className="member-pill-remove">
-                        <FiX className="ui-icon" />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state slim group-picker-empty">Selected people will appear here.</div>
-              )}
-            </div>
-            <button type="submit">Create</button>
-          </form>
-        )}
-
-        {activeTab === 'connections' && (
-          <div className="request-sections sidebar-section">
-            <div className="request-section">
-              <h3>Incoming Requests</h3>
-              {incomingRequests.map((entry) => (
-                <div key={entry._id} className="request-card">
+          {showCreateGroup && (
+            <form className="group-panel sidebar-inline-panel" onSubmit={handleCreateGroup}>
+              <h3>Create group</h3>
+              {groupError && <div className="auth-error">{groupError}</div>}
+              <input
+                value={groupDraft.name}
+                onChange={(e) => setGroupDraft((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Group name"
+              />
+              <input
+                value={groupDraft.description}
+                onChange={(e) => setGroupDraft((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Description"
+              />
+              <div className="group-picker-summary">
+                <div className="group-picker-summary-head">
                   <div>
-                    <strong>{entry.username}</strong>
-                    <small>{entry.email}</small>
+                    <strong>Select people</strong>
+                    <p>{selectedGroupMembers.length > 0 ? `${selectedGroupMembers.length} selected` : 'No people selected yet'}</p>
                   </div>
-                  <div className="inline-actions">
-                    <button className="ghost-button" onClick={() => handleAcceptRequest(entry)}>Accept</button>
-                    <button className="danger-button" onClick={() => handleRejectRequest(entry)}>Reject</button>
-                  </div>
+                  <button className="ghost-button" type="button" onClick={() => setShowGroupMemberPicker(true)}>
+                    Choose People
+                  </button>
                 </div>
-              ))}
-              {incomingRequests.length === 0 && <div className="empty-state slim">No incoming requests.</div>}
-            </div>
-            <div className="request-section">
-              <h3>Outgoing Requests</h3>
-              {outgoingRequests.map((entry) => (
-                <div key={entry._id} className="request-card">
-                  <div>
-                    <strong>{entry.username}</strong>
-                    <small>{entry.email}</small>
+                {selectedGroupMembers.length > 0 ? (
+                  <div className="group-members selected-members">
+                    {selectedGroupMembers.map((member) => (
+                      <button
+                        key={member._id}
+                        type="button"
+                        className="member-pill removable"
+                        onClick={() =>
+                          setGroupDraft((prev) => ({
+                            ...prev,
+                            members: prev.members.filter((id) => id !== member._id)
+                          }))
+                        }
+                      >
+                        <span>{member.username}</span>
+                        <span className="member-pill-remove">
+                          <FiX className="ui-icon" />
+                        </span>
+                      </button>
+                    ))}
                   </div>
-                  <span className="status-label pending">Pending</span>
-                </div>
-              ))}
-              {outgoingRequests.length === 0 && <div className="empty-state slim">No outgoing requests.</div>}
-            </div>
-          </div>
-        )}
+                ) : (
+                  <div className="empty-state slim group-picker-empty">Selected people will appear here.</div>
+                )}
+              </div>
+              <button type="submit">Create</button>
+            </form>
+          )}
 
-        <div className="chat-list">
-          {currentList.map((item) => (
-            <div key={item._id} className={`chat-item ${activeChat?._id === item._id ? 'selected' : ''}`} onClick={() => loadConversation(item)}>
-              <div className="chat-item-top">
-                <strong>{item.name || item.username}</strong>
-                <small>{formatTime(item.lastMessage?.timestamp)}</small>
+          {activeTab === 'connections' && (
+            <div className="request-sections sidebar-section">
+              <div className="request-section">
+                <h3>Incoming Requests</h3>
+                {incomingRequests.map((entry) => (
+                  <div key={entry._id} className="request-card">
+                    <div>
+                      <strong>{entry.username}</strong>
+                      <small>{entry.email}</small>
+                    </div>
+                    <div className="inline-actions">
+                      <button className="ghost-button" onClick={() => handleAcceptRequest(entry)}>Accept</button>
+                      <button className="danger-button" onClick={() => handleRejectRequest(entry)}>Reject</button>
+                    </div>
+                  </div>
+                ))}
+                {incomingRequests.length === 0 && <div className="empty-state slim">No incoming requests.</div>}
               </div>
-              <div className="chat-item-bottom">
-                <small>{activeTab === 'connections' ? item.email : buildChatPreview(item)}</small>
-                {!item.group && <span className={`status-dot ${item.online ? 'online' : 'offline'}`} />}
+              <div className="request-section">
+                <h3>Outgoing Requests</h3>
+                {outgoingRequests.map((entry) => (
+                  <div key={entry._id} className="request-card">
+                    <div>
+                      <strong>{entry.username}</strong>
+                      <small>{entry.email}</small>
+                    </div>
+                    <span className="status-label pending">Pending</span>
+                  </div>
+                ))}
+                {outgoingRequests.length === 0 && <div className="empty-state slim">No outgoing requests.</div>}
               </div>
             </div>
-          ))}
-          {currentList.length === 0 && <div className="empty-state">Nothing to show yet.</div>}
+          )}
+
+          <div className="chat-list">
+            {currentList.map((item) => (
+              <div key={item._id} className={`chat-item ${activeChat?._id === item._id ? 'selected' : ''}`} onClick={() => loadConversation(item)}>
+                <div className="chat-item-top">
+                  <strong>{item.name || item.username}</strong>
+                  <small>{formatTime(item.lastMessage?.timestamp)}</small>
+                </div>
+                <div className="chat-item-bottom">
+                  <small>{activeTab === 'connections' ? item.email : buildChatPreview(item)}</small>
+                  {!item.group && <span className={`status-dot ${item.online ? 'online' : 'offline'}`} />}
+                </div>
+              </div>
+            ))}
+            {currentList.length === 0 && <div className="empty-state">Nothing to show yet.</div>}
+          </div>
         </div>
       </aside>
 

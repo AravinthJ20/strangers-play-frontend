@@ -998,6 +998,33 @@ input {
   margin: 0 auto;
 }
 
+.request-view-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(18, 33, 58, 0.08);
+}
+
+.request-view-tab {
+  border: none;
+  border-radius: 999px;
+  padding: 9px 16px;
+  background: transparent;
+  color: #445066;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.request-view-tab.active {
+  background: #17324f;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(23, 50, 79, 0.16);
+}
+
 .people-list-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1420,6 +1447,11 @@ input {
   height: 100vh;
   position: relative;
   overflow: hidden;
+  transition: grid-template-columns 0.2s ease;
+}
+
+.chat-shell.sidebar-collapsed {
+  grid-template-columns: 76px 1fr;
 }
 
 .app-navbar {
@@ -1428,7 +1460,7 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 6px 14px;
   background: rgba(255, 255, 255, 0.84);
   border-bottom: 1px solid rgba(18, 33, 58, 0.08);
   backdrop-filter: blur(16px);
@@ -1455,8 +1487,8 @@ input {
 }
 
 .app-navbar-logo {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.92);
@@ -1469,6 +1501,30 @@ input {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.nav-request-button {
+  position: relative;
+}
+
+.nav-request-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #bc4749;
+  color: #fff;
+  border: 2px solid #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 16px rgba(188, 71, 73, 0.24);
 }
 
 .app-navbar-search {
@@ -1511,15 +1567,38 @@ input {
   border-right: 1px solid rgba(18, 33, 58, 0.08);
   display: flex;
   flex-direction: column;
-  padding: 12px 10px 10px;
-  gap: 10px;
+  padding: 8px 10px 10px;
+  gap: 6px;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  transition: width 0.2s ease, padding 0.2s ease;
+}
+
+.sidebar.collapsed {
+  width: 76px;
+  padding: 12px 9px;
+  align-items: center;
+}
+
+.sidebar-collapse-content {
+  display: contents;
+}
+
+.sidebar.collapsed .sidebar-collapse-content {
+  display: none;
+}
+
+.sidebar-toggle-button {
+  flex: 0 0 auto;
+}
+
+.sidebar-toggle-button .ui-icon {
+  color: #12213a;
 }
 
 .sidebar-header {
-  padding: 14px;
+  padding: 10px 12px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1542,9 +1621,9 @@ input {
 }
 
 .sidebar-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1594,13 +1673,13 @@ input {
 
 /* Add a little vertical space between the profile row and the meta badges */
 .sidebar-profile-details .sidebar-profile-meta {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .sidebar-profile-meta span {
   display: inline-flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border-radius: 999px;
   background: rgba(23, 50, 79, 0.06);
   color: #445066;
@@ -1626,17 +1705,17 @@ input {
 .sidebar-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 5px;
   padding: 0;
   background: rgba(18, 33, 58, 0.05);
   border-radius: 18px;
   border: 1px solid rgba(18, 33, 58, 0.06);
-  padding: 5px;
+  padding: 4px;
 }
 
 .sidebar-tabs button,
 .ghost-button {
-  padding: 9px 10px;
+  padding: 8px 9px;
   border: 1px solid rgba(18, 33, 58, 0.12);
   background: rgba(255, 255, 255, 0.84);
   color: #12213a;
@@ -1656,27 +1735,27 @@ input {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 4px 4px;
+  padding: 0 4px 6px;
   min-height: 0;
 }
 
 .chat-item {
-  padding: 12px;
-  border-radius: 18px;
+  padding: 8px 10px;
+  border-radius: 14px;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
   background: rgba(255, 255, 255, 0.84);
   border: 1px solid rgba(18, 33, 58, 0.06);
-  margin-bottom: 8px;
-  box-shadow: 0 10px 24px rgba(18, 33, 58, 0.05);
+  margin-bottom: 5px;
+  box-shadow: 0 6px 16px rgba(18, 33, 58, 0.04);
 }
 
 .chat-item:hover,
 .chat-item.selected {
   background: white;
   border-color: rgba(42, 157, 143, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 16px 28px rgba(42, 157, 143, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(42, 157, 143, 0.1);
 }
 
 .chat-item-top,
@@ -1685,16 +1764,27 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .chat-item-bottom {
-  margin-top: 6px;
+  margin-top: 3px;
+}
+
+.chat-item-top strong {
+  font-size: 0.95rem;
+  line-height: 1.15;
+}
+
+.chat-item-top small,
+.chat-item-bottom small {
+  font-size: 0.8rem;
+  line-height: 1.2;
 }
 
 .status-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   flex-shrink: 0;
 }
@@ -2674,9 +2764,8 @@ input {
   box-shadow: 0 14px 30px rgba(23, 50, 79, 0.06);
 }
 
-/* Add bottom padding to sidebar to avoid clipping with fixed UI elements */
 .sidebar {
-  padding-bottom: 84px; /* safe area for floating buttons */
+  padding-bottom: 12px;
 }
 
 .request-card {
@@ -3108,11 +3197,20 @@ input {
     grid-template-rows: auto auto 1fr;
   }
 
+  .chat-shell.sidebar-collapsed {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
   .sidebar {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid rgba(18, 33, 58, 0.08);
-    padding: 14px 12px 12px;
+    padding: 8px 12px 12px;
+  }
+
+  .sidebar.collapsed {
+    display: none;
   }
 
   .chat-header,
@@ -3134,7 +3232,7 @@ input {
   }
 
   .app-navbar {
-    padding: 12px 14px;
+    padding: 6px 14px;
     align-items: flex-start;
     flex-direction: column;
   }

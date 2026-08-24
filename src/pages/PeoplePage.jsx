@@ -229,7 +229,7 @@ export default function PeoplePage() {
             <div className="people-deck">
               {nextPeople.reverse().map((person, index) => (
                 <div key={person._id} className={`people-card people-card-stack stack-${index + 1}`}>
-                  {renderAvatar(person)}
+                
                   <div className="people-card-copy">
                     <strong>{person.username}</strong>
                     <span>{person.email}</span>

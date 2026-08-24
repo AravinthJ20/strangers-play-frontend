@@ -24,13 +24,18 @@ const renderAvatar = (person) => (
 export default function RequestsPage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
-  const [requests, setRequests] = useState([]);
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [outgoingRequests, setOutgoingRequests] = useState([]);
+  const [activeRequestView, setActiveRequestView] = useState('received');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetchRequests(token)
-      .then((data) => setRequests(data.incoming || []))
+      .then((data) => {
+        setIncomingRequests(data.incoming || []);
+        setOutgoingRequests(data.outgoing || []);
+      })
       .catch((loadError) => setError(loadError.response?.data?.error || 'Unable to load requests right now.'))
       .finally(() => setLoading(false));
   }, [token]);
@@ -38,7 +43,7 @@ export default function RequestsPage() {
   const handleAccept = async (userId) => {
     try {
       await acceptInterest(userId, token);
-      setRequests((prev) => prev.filter((entry) => entry._id !== userId));
+      setIncomingRequests((prev) => prev.filter((entry) => entry._id !== userId));
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to accept this request.');
     }
@@ -47,19 +52,21 @@ export default function RequestsPage() {
   const handleReject = async (userId) => {
     try {
       await rejectInterest(userId, token);
-      setRequests((prev) => prev.filter((entry) => entry._id !== userId));
+      setIncomingRequests((prev) => prev.filter((entry) => entry._id !== userId));
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to reject this request.');
     }
   };
 
+  const visibleRequests = activeRequestView === 'received' ? incomingRequests : outgoingRequests;
+
   return (
     <div className="people-page">
       <header className="people-header">
         <div>
-          <strong className="eyebrow">Received Requests</strong>
-          <h1>Review interested profiles</h1>
-          <p>Accept the profiles you want to connect with, or reject the ones you want to skip.</p>
+          <strong className="eyebrow">Connection Requests</strong>
+          <h1>Review your request activity</h1>
+          <p>Accept received requests, or check the people you already sent requests to.</p>
         </div>
         <div className="people-header-actions">
           <button className="ghost-button button-with-icon" onClick={() => navigate('/chat')}>
@@ -76,29 +83,60 @@ export default function RequestsPage() {
       </div>
 
       <section className="people-list-shell">
+        <div className="request-view-tabs" role="tablist" aria-label="Request type">
+          <button
+            className={`request-view-tab${activeRequestView === 'received' ? ' active' : ''}`}
+            type="button"
+            onClick={() => setActiveRequestView('received')}
+          >
+            Received ({incomingRequests.length})
+          </button>
+          <button
+            className={`request-view-tab${activeRequestView === 'sent' ? ' active' : ''}`}
+            type="button"
+            onClick={() => setActiveRequestView('sent')}
+          >
+            Sent ({outgoingRequests.length})
+          </button>
+        </div>
+
         {error && <div className="chat-error-banner">{error}</div>}
         {loading ? (
           <div className="empty-state">Loading requests...</div>
-        ) : requests.length === 0 ? (
-          <div className="empty-state">No received requests right now.</div>
+        ) : visibleRequests.length === 0 ? (
+          <div className="empty-state">
+            {activeRequestView === 'received'
+              ? 'No received requests right now.'
+              : 'No sent requests right now.'}
+          </div>
         ) : (
           <div className="people-list-grid">
-            {requests.map((person) => (
+            {visibleRequests.map((person) => (
               <article key={person._id} className="people-list-card">
                 <div className="people-list-card-head">
                   {renderAvatar(person)}
                   <div className="people-card-copy">
                     <strong>{person.username}</strong>
                     <span>{person.email}</span>
-                    <small>{person.online ? 'Online now' : 'Interested in connecting'}</small>
+                    <small>
+                      {person.online
+                        ? 'Online now'
+                        : activeRequestView === 'received'
+                          ? 'Interested in connecting'
+                          : 'Waiting for response'}
+                    </small>
                   </div>
                 </div>
                 <div className="people-list-card-footer">
-                  <span className="status-label pending">Interested</span>
-                  <div className="people-list-card-actions">
-                    <button className="ghost-button" type="button" onClick={() => handleReject(person._id)}>Reject</button>
-                    <button className="people-connect-button" type="button" onClick={() => handleAccept(person._id)}>Accept</button>
-                  </div>
+                  <span className="status-label pending">
+                    {activeRequestView === 'received' ? 'Interested' : 'Request Sent'}
+                  </span>
+                  {activeRequestView === 'received' && (
+                    <div className="people-list-card-actions">
+                      <button className="ghost-button" type="button" onClick={() => handleReject(person._id)}>Reject</button>
+                      <button className="people-connect-button" type="button" onClick={() => handleAccept(person._id)}>Accept</button>
+                    </div>
+                  )}
                 </div>
               </article>
             ))}
