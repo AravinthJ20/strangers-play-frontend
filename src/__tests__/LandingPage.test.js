@@ -9,6 +9,7 @@ test('renders landing page hero copy and CTA links', () => {
     </MemoryRouter>
   );
 
+  
   expect(screen.getByText(/Built For Real Connections/i)).toBeTruthy();
   expect(screen.getByText(/Create Your Account/i)).toBeTruthy();
   expect(screen.getByText(/I already have an account/i)).toBeTruthy();

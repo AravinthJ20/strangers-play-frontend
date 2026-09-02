@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import Login from '../pages/Login';
 import * as api from '../services/api';
 
-jest.mock('../api');
+jest.mock('../services/api');
 
 test('shows an error popup when login fails', async () => {
   api.loginUser.mockRejectedValueOnce({ response: { data: { error: 'Invalid credentials' } } });
