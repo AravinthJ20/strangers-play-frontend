@@ -5,6 +5,8 @@ const client = axios.create({ baseURL: appConfig.apiBaseUrl, headers: { 'Content
 const withAuth = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
 export const loginUser = (credentials) => client.post('/api/auth/login', credentials).then((res) => res.data);
+export const getGoogleAuthUrl = (state) => client.get('/api/auth/google/url', { params: { state } }).then((res) => res.data);
+export const completeGoogleLogin = (code, inviteToken = '') => client.post('/api/auth/google/callback', { code, inviteToken }).then((res) => res.data);
 export const requestRegistrationOtp = (payload) => client.post('/api/auth/register/request-otp', payload).then((res) => res.data);
 export const registerUser = (payload) => client.post('/api/auth/register', payload).then((res) => res.data);
 export const requestPasswordResetOtp = (email) => client.post('/api/auth/forgot-password/request-otp', { email }).then((res) => res.data);

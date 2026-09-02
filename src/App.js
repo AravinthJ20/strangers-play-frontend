@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
+import GoogleOAuthCallback from './pages/GoogleOAuthCallback';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ChatPage from './pages/MessagingPage';
@@ -46,7 +47,7 @@ function App() {
 
   useEffect(() => {
     const token = getStoredToken();
-    const publicPaths = ['/', '/register', '/login', '/forgot-password', '/about', '/contact', '/privacy-policy', '/terms', '/refund-policy', '/pricing'];
+    const publicPaths = ['/', '/register', '/login', '/auth/google/callback', '/forgot-password', '/about', '/contact', '/privacy-policy', '/terms', '/refund-policy', '/pricing'];
     if (!token) {
       setUser(null);
       setAuthChecked(true);
@@ -76,6 +77,7 @@ function App() {
       <Routes>
         <Route path="/" element={user ? <Navigate to="/chat" /> : <LandingPage />} />
         <Route path="/login" element={user ? <Navigate to="/chat" replace /> : <Login />} />
+        <Route path="/auth/google/callback" element={user ? <Navigate to="/chat" replace /> : <GoogleOAuthCallback />} />
         <Route path="/register" element={user ? <Navigate to="/chat" replace /> : <Register />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/chat" replace /> : <ForgotPassword />} />
         <Route path="/chat" element={user ? <ChatPage user={user} onLogoutComplete={handleLoggedOut} /> : <Navigate to="/login" />} />

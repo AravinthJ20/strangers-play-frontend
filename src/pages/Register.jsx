@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { FcGoogle } from 'react-icons/fc';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { requestRegistrationOtp, registerUser, validateInviteToken } from '../services/api';
+import { getGoogleAuthUrl, requestRegistrationOtp, registerUser, validateInviteToken } from '../services/api';
 import AuthShell from '../components/common/AuthShell';
 
 const readFileAsDataUrl = (file) =>
@@ -10,6 +11,12 @@ const readFileAsDataUrl = (file) =>
     reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
     reader.readAsDataURL(file);
   });
+
+const createOAuthState = () => {
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
 
 export default function Register() {
   const [username, setUsername] = useState('');
@@ -124,6 +131,39 @@ if (trimmedPassword !== confirmPassword.trim()) {
     }
   };
 
+  const handleGoogleSignup = async () => {
+    setError('');
+    setStatusMessage('');
+
+    if (!acceptedTerms) {
+      setError('Please agree to the Terms & Conditions before signing up with Google');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const state = createOAuthState();
+      sessionStorage.setItem('googleOAuthState', state);
+      if (inviteToken) {
+        sessionStorage.setItem('googleOAuthInviteToken', inviteToken);
+      } else {
+        sessionStorage.removeItem('googleOAuthInviteToken');
+      }
+
+      const data = await getGoogleAuthUrl(state);
+      if (!data?.url) {
+        throw new Error('Google signup URL was not returned.');
+      }
+
+      window.location.assign(data.url);
+    } catch (err) {
+      sessionStorage.removeItem('googleOAuthState');
+      sessionStorage.removeItem('googleOAuthInviteToken');
+      setError(err.response?.data?.error || err.message || 'Unable to start Google signup');
+      setSubmitting(false);
+    }
+  };
+
   if (!inviteChecked) {
     return null;
   }
@@ -192,6 +232,11 @@ if (trimmedPassword !== confirmPassword.trim()) {
             </span>
           </label>
           <button type="submit" disabled={submitting}>{submitting ? 'Sending OTP...' : 'Send OTP'}</button>
+          <div className="auth-divider"><span>or</span></div>
+          <button className="google-login-button" type="button" aria-label="Sign up with Google" disabled={submitting} onClick={handleGoogleSignup}>
+            <FcGoogle className="ui-icon" />
+            <span>Sign up with Google</span>
+          </button>
         </form>
       ) : (
         <form className="auth-form" onSubmit={handleVerifyOtp}>

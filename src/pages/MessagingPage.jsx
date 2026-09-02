@@ -283,6 +283,25 @@ const LocationPreview = ({ location }) => {
   );
 };
 
+const ChatListAvatar = ({ item }) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const label = item.name || item.username || 'Chat';
+  const avatarSource = resolveMediaSource(item.avatar);
+
+  return (
+    <div className={`chat-list-avatar${item.group ? ' group' : ''}`}>
+      {avatarSource && !imageFailed ? (
+        <img src={avatarSource} alt={label} className="chat-list-avatar-image" onError={() => setImageFailed(true)} />
+      ) : item.group ? (
+        <FiUsers className="ui-icon" aria-hidden="true" />
+      ) : (
+        getInitials(label)
+      )}
+      {!item.group && <span className={`status-dot avatar-status-dot ${item.online ? 'online' : 'offline'}`} />}
+    </div>
+  );
+};
+
 const MediaPreview = ({ attachment }) => {
   const source = resolveMediaSource(attachment.publicUrl);
   if (attachment.category === 'image') {
@@ -2421,13 +2440,15 @@ export default function ChatPage({ user, onLogoutComplete }) {
           <div className="chat-list">
             {currentList.map((item) => (
               <div key={item._id} className={`chat-item ${activeChat?._id === item._id ? 'selected' : ''}`} onClick={() => loadConversation(item)}>
-                <div className="chat-item-top">
-                  <strong>{item.name || item.username}</strong>
-                  <small>{formatTime(item.lastMessage?.timestamp)}</small>
-                </div>
-                <div className="chat-item-bottom">
-                  <small>{activeTab === 'connections' ? item.email : buildChatPreview(item)}</small>
-                  {!item.group && <span className={`status-dot ${item.online ? 'online' : 'offline'}`} />}
+                <ChatListAvatar item={item} />
+                <div className="chat-item-content">
+                  <div className="chat-item-top">
+                    <strong>{item.name || item.username}</strong>
+                    <small>{formatTime(item.lastMessage?.timestamp)}</small>
+                  </div>
+                  <div className="chat-item-bottom">
+                    <small>{activeTab === 'connections' ? item.email : buildChatPreview(item)}</small>
+                  </div>
                 </div>
               </div>
             ))}
