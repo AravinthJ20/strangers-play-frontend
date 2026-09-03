@@ -1187,8 +1187,11 @@ export default function ChatPage({ user, onLogoutComplete }) {
   }, [token]);
 
   useEffect(() => {
-    const socketClient = io(appConfig.socketUrl, { auth: { token } });
-
+    // const socketClient = io(appConfig.socketUrl, { auth: { token } });
+const socket = io(appConfig.socketUrl, {
+  ...appConfig.socketOptions,
+  auth: { token }
+});
     socketClient.on('connect_error', (err) => {
       console.error('Socket connect error:', err.message || err);
     });

@@ -13,7 +13,8 @@ export const appConfig = {
 
   // socketOptions:
   //   apiUrl === productionApiUrl ? { path: "/backend/socket.io" } : {},
-      socketOptions:
+
+    socketOptions:
    window.location.hostname != "localhost"  ? { path: "/backend/socket.io" } : {},
 
   vapidPublicKey:
