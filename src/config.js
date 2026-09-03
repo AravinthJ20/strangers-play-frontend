@@ -11,8 +11,10 @@ export const appConfig = {
   socketUrl: apiUrl,
   mediaBaseUrl: apiUrl,
 
-  socketOptions:
-    apiUrl === productionApiUrl ? { path: "/backend/socket.io" } : {},
+  // socketOptions:
+  //   apiUrl === productionApiUrl ? { path: "/backend/socket.io" } : {},
+      socketOptions:
+   window.location.hostname != "localhost"  ? { path: "/backend/socket.io" } : {},
 
   vapidPublicKey:
     "BESZWDQRyJyEgRow94uzdVWVKhOUAo460urAwdaFYhhHYQoqWdDfrZj1ZriG7G0mPrl0bZQkiBrBTUw0D3dCtNI",
